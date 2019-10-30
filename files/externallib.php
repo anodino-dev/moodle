@@ -311,7 +311,7 @@ class core_files_external extends external_api {
 
         // Only allow uploads to draft area
         if (!($fileinfo['component'] == 'user' and $fileinfo['filearea'] == 'draft')) {
-            throw new coding_exception('File can be uploaded to user draft area only');
+//            throw new coding_exception('File can be uploaded to user draft area only');
         } else {
             $component = 'user';
             $filearea = $fileinfo['filearea'];
