@@ -516,7 +516,7 @@ $string['displayonpage'] = 'Display on page';
 $string['dndcourse'] = 'You can drag and drop this course to alter its sorting or to move it to another category.';
 $string['dndenabled_inbox'] = 'You can drag and drop files here to add them.';
 $string['dndnotsupported'] = 'Drag and drop upload not supported';
-$string['dndnotsupported_help'] = 'Your browser does not support drag and drop upload.<br />This feature is available in all recent versions of Chrome, Firefox and Safari, as well as Internet Explorer v10 and above.';
+$string['dndnotsupported_help'] = 'Your browser does not support drag and drop upload. This feature is available in all recent versions of Chrome, Firefox and Safari, as well as Internet Explorer v10 and above.';
 $string['dndnotsupported_insentence'] = 'drag and drop not supported';
 $string['dnduploadwithoutcontent'] = 'This upload does not have any content';
 $string['dndworkingfiletextlink'] = 'Drag and drop files, text or links onto course sections to upload them';
@@ -772,6 +772,7 @@ $string['eventcourseviewed'] = 'Course viewed';
 $string['eventdashboardreset'] = 'Dashboard reset';
 $string['eventdashboardsreset'] = 'Dashboards reset';
 $string['eventdashboardviewed'] = 'Dashboard viewed';
+$string['eventdatabasetextfieldcontentreplaced'] = 'Database global search and replace';
 $string['eventemailfailed'] = 'Email failed to send';
 $string['eventname'] = 'Event name';
 $string['eventrecentactivityviewed'] = 'Recent activity viewed';
@@ -1229,14 +1230,18 @@ $string['moddoesnotsupporttype'] = 'Module {$a->modname} does not support upload
 $string['modhide'] = 'Hide';
 $string['modshow'] = 'Show';
 $string['modvisible'] = 'Availability';
-$string['modvisible_help'] = 'If the availability is set to \'Show on course page\', the activity or resource is available to students (subject to any access restrictions which may be set).<br><br>
+$string['modvisible_help'] = 'If the availability is set to \'Show on course page\', the activity or resource is available to students (subject to any access restrictions which may be set).
+
 If the availability is set to \'Hide from students\', the activity or resource is only available to users with permission to view hidden activities (by default, users with the role of teacher or non-editing teacher).';
 $string['modvisiblewithstealth'] = 'Availability';
-$string['modvisiblewithstealth_help'] = 'If the availability is set to \'Show on course page\', the activity or resource is available to students (subject to any access restrictions which may be set).<br><br>
-If the availability is set to \'Hide from students\', the activity or resource is only available to users with permission to view hidden activities (by default, users with the role of teacher or non-editing teacher).<br><br>
+$string['modvisiblewithstealth_help'] = 'If the availability is set to \'Show on course page\', the activity or resource is available to students (subject to any access restrictions which may be set).
+
+If the availability is set to \'Hide from students\', the activity or resource is only available to users with permission to view hidden activities (by default, users with the role of teacher or non-editing teacher).
+
 If the course contains many activities or resources, the course page may be simplified by setting the availability to \'Make available but not shown on course page\'. In this case, a link to the activity or resource must be provided from elsewhere, such as from a page resource. The activity would still be listed in the gradebook and other reports.';
 $string['modvisiblehiddensection'] = 'Availability';
-$string['modvisiblehiddensection_help'] = 'If the availability is set to \'Hide from students\', the activity or resource is only available to users with permission to view hidden activities (by default, users with the role of teacher or non-editing teacher).<br><br>
+$string['modvisiblehiddensection_help'] = 'If the availability is set to \'Hide from students\', the activity or resource is only available to users with permission to view hidden activities (by default, users with the role of teacher or non-editing teacher).
+
 If the course contains many activities or resources, the course page may be simplified by setting the availability to \'Make available but not shown on course page\'. In this case, a link to the activity or resource must be provided from elsewhere, such as from a page resource. The activity would still be listed in the gradebook and other reports.';
 $string['moodlelogo'] = 'Moodle logo';
 $string['month'] = 'Month';
@@ -1571,7 +1576,7 @@ $string['privacy:metadata:log:module'] = 'module';
 $string['privacy:metadata:log:time'] = 'The time when the action took place';
 $string['privacy:metadata:log:url'] = 'The URL related to the event';
 $string['privacy:metadata:log:userid'] = 'The ID of the user who performed the action';
-$string['privacy:metadata:task_adhoc'] = 'The status of adhoc tasks.';
+$string['privacy:metadata:task_adhoc'] = 'The status of ad hoc tasks.';
 $string['privacy:metadata:task_adhoc:component'] = 'The component owning the task.';
 $string['privacy:metadata:task_adhoc:nextruntime'] = 'The earliest time to run this task.';
 $string['privacy:metadata:task_adhoc:userid'] = 'The user to run the task as.';
@@ -1808,6 +1813,7 @@ $string['shortnameuser'] = 'User short name';
 $string['shortsitename'] = 'Short name for site (eg single word)';
 $string['show'] = 'Show';
 $string['showactions'] = 'Show actions';
+$string['showadvancededitor'] = 'Advanced';
 $string['showadvancedsettings'] = 'Show advanced settings';
 $string['showall'] = 'Show all {$a}';
 $string['showallcourses'] = 'Show all courses';
