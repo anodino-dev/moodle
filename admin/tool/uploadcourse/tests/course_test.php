@@ -35,21 +35,16 @@ global $CFG;
  */
 class tool_uploadcourse_course_testcase extends advanced_testcase {
 
-    /**
-     * @expectedException coding_exception
-     */
     public function test_proceed_without_prepare() {
         $this->resetAfterTest(true);
         $mode = tool_uploadcourse_processor::MODE_CREATE_NEW;
         $updatemode = tool_uploadcourse_processor::UPDATE_NOTHING;
         $data = array();
         $co = new tool_uploadcourse_course($mode, $updatemode, $data);
+        $this->expectException(coding_exception::class);
         $co->proceed();
     }
 
-    /**
-     * @expectedException moodle_exception
-     */
     public function test_proceed_when_prepare_failed() {
         $this->resetAfterTest(true);
         $mode = tool_uploadcourse_processor::MODE_CREATE_NEW;
@@ -57,6 +52,7 @@ class tool_uploadcourse_course_testcase extends advanced_testcase {
         $data = array();
         $co = new tool_uploadcourse_course($mode, $updatemode, $data);
         $this->assertFalse($co->prepare());
+        $this->expectException(moodle_exception::class);
         $co->proceed();
     }
 
@@ -80,6 +76,47 @@ class tool_uploadcourse_course_testcase extends advanced_testcase {
         $co = new tool_uploadcourse_course($mode, $updatemode, $data);
         $this->assertFalse($co->prepare());
         $this->assertArrayHasKey('invalidshortname', $co->get_errors());
+    }
+
+    public function test_invalid_shortname_too_long() {
+        $this->resetAfterTest();
+
+        $mode = tool_uploadcourse_processor::MODE_CREATE_NEW;
+        $updatemode = tool_uploadcourse_processor::UPDATE_NOTHING;
+
+        $upload = new tool_uploadcourse_course($mode, $updatemode, [
+            'category' => 1,
+            'fullname' => 'New course',
+            'shortname' => str_repeat('X', 2000),
+        ]);
+
+        $this->assertFalse($upload->prepare());
+        $this->assertArrayHasKey('invalidshortnametoolong', $upload->get_errors());
+    }
+
+    public function test_invalid_fullname_too_long() {
+        $this->resetAfterTest();
+
+        $mode = tool_uploadcourse_processor::MODE_CREATE_NEW;
+        $updatemode = tool_uploadcourse_processor::UPDATE_NOTHING;
+
+        $upload = new tool_uploadcourse_course($mode, $updatemode, [
+            'category' => 1,
+            'fullname' => str_repeat('X', 2000),
+        ]);
+
+        $this->assertFalse($upload->prepare());
+        $this->assertArrayHasKey('invalidfullnametoolong', $upload->get_errors());
+    }
+
+    public function test_invalid_visibility() {
+        $this->resetAfterTest(true);
+        $mode = tool_uploadcourse_processor::MODE_CREATE_NEW;
+        $updatemode = tool_uploadcourse_processor::UPDATE_NOTHING;
+        $data = array('shortname' => 'test', 'fullname' => 'New course', 'summary' => 'New', 'category' => 1, 'visible' => 2);
+        $co = new tool_uploadcourse_course($mode, $updatemode, $data);
+        $this->assertFalse($co->prepare());
+        $this->assertArrayHasKey('invalidvisibilitymode', $co->get_errors());
     }
 
     public function test_create() {
@@ -1014,6 +1051,9 @@ class tool_uploadcourse_course_testcase extends advanced_testcase {
     public function test_enrolment_data() {
         $this->resetAfterTest(true);
 
+        // We need to set the current user as one with the capability to edit manual enrolment instances in the new course.
+        $this->setAdminUser();
+
         $mode = tool_uploadcourse_processor::MODE_CREATE_NEW;
         $updatemode = tool_uploadcourse_processor::UPDATE_ALL_WITH_DATA_ONLY;
         $data = array('shortname' => 'c1', 'summary' => 'S', 'fullname' => 'FN', 'category' => '1');
@@ -1038,6 +1078,253 @@ class tool_uploadcourse_course_testcase extends advanced_testcase {
         $this->assertEquals(strtotime($data['enrolment_1_startdate']), $enroldata['manual']->enrolstartdate);
         $this->assertEquals(strtotime('1970-01-01 GMT + ' . $data['enrolment_1_enrolperiod']), $enroldata['manual']->enrolperiod);
         $this->assertEquals(strtotime('12th July 2013'), $enroldata['manual']->enrolenddate);
+    }
+
+    /**
+     * Data provider for testing enrolment errors
+     *
+     * @return array
+     */
+    public function enrolment_uploaddata_error_provider(): array {
+        return [
+            ['errorcannotcreateorupdateenrolment', [
+                'shortname' => 'C1',
+                'enrolment_1' => 'manual',
+            ]],
+            ['errorcannotdeleteenrolment', [
+                'shortname' => 'C1',
+                'enrolment_1' => 'manual',
+                'enrolment_1_delete' => '1',
+            ]],
+            ['errorcannotdisableenrolment', [
+                'shortname' => 'C1',
+                'enrolment_1' => 'manual',
+                'enrolment_1_disable' => '1',
+            ]],
+        ];
+    }
+
+    /**
+     * Test that user without permission, cannot modify enrolment instances when creating courses
+     *
+     * @param string $expectederror
+     * @param array $uploaddata
+     *
+     * @dataProvider enrolment_uploaddata_error_provider
+     */
+    public function test_enrolment_error_create_course(string $expectederror, array $uploaddata): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        // Create category in which to create the new course.
+        $category = $this->getDataGenerator()->create_category();
+        $categorycontext = context_coursecat::instance($category->id);
+
+        $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
+
+        // Assign the user as a manager of the category, disable ability to configure manual enrolment instances.
+        $roleid = $DB->get_field('role', 'id', ['shortname' => 'manager']);
+        role_assign($roleid, $user->id, $categorycontext);
+        role_change_permission($roleid, $categorycontext, 'enrol/manual:config', CAP_PROHIBIT);
+
+        $mode = tool_uploadcourse_processor::MODE_CREATE_NEW;
+        $updatemode = tool_uploadcourse_processor::UPDATE_ALL_WITH_DATA_ONLY;
+
+        $upload = new tool_uploadcourse_course($mode, $updatemode, array_merge($uploaddata, [
+            'category' => $category->id,
+            'fullname' => 'My course',
+        ]));
+
+        // Enrolment validation isn't performed during 'prepare' for new courses.
+        $this->assertTrue($upload->prepare());
+        $upload->proceed();
+
+        $errors = $upload->get_errors();
+        $this->assertArrayHasKey($expectederror, $errors);
+
+        $this->assertEquals(get_string($expectederror, 'tool_uploadcourse', 'Manual enrolments'),
+            (string) $errors[$expectederror]);
+    }
+
+    /**
+     * Test that user without permission, cannot modify enrolment instances when updating courses
+     *
+     * @param string $expectederror
+     * @param array $uploaddata
+     *
+     * @dataProvider enrolment_uploaddata_error_provider
+     */
+    public function test_enrolment_error_update_course(string $expectederror, array $uploaddata): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        // Create category in which to create the new course.
+        $category = $this->getDataGenerator()->create_category();
+        $categorycontext = context_coursecat::instance($category->id);
+
+        $course = $this->getDataGenerator()->create_course([
+            'category' => $category->id,
+            'shortname' => $uploaddata['shortname'],
+        ]);
+
+        $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
+
+        // Assign the user as a manager of the category, disable ability to configure manual enrolment instances.
+        $roleid = $DB->get_field('role', 'id', ['shortname' => 'manager']);
+        role_assign($roleid, $user->id, $categorycontext);
+        role_change_permission($roleid, $categorycontext, 'enrol/manual:config', CAP_PROHIBIT);
+
+        // Sanity check.
+        $instances = enrol_get_instances($course->id, true);
+        $this->assertCount(1, $instances);
+        $this->assertEquals('manual', reset($instances)->enrol);
+
+        $mode = tool_uploadcourse_processor::MODE_UPDATE_ONLY;
+        $updatemode = tool_uploadcourse_processor::UPDATE_ALL_WITH_DATA_ONLY;
+
+        $upload = new tool_uploadcourse_course($mode, $updatemode, $uploaddata);
+
+        $this->assertFalse($upload->prepare());
+
+        $errors = $upload->get_errors();
+        $this->assertArrayHasKey($expectederror, $errors);
+
+        $this->assertEquals(get_string($expectederror, 'tool_uploadcourse', 'Manual enrolments'),
+            (string) $errors[$expectederror]);
+    }
+
+    /**
+     * Test upload processing of course custom fields
+     */
+    public function test_custom_fields_data() {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course(['shortname' => 'C1']);
+
+        // Create our custom fields.
+        $category = $this->get_customfield_generator()->create_category();
+        $this->create_custom_field($category, 'date', 'mydatefield');
+        $this->create_custom_field($category, 'text', 'mytextfield');
+        $this->create_custom_field($category, 'textarea', 'mytextareafield');
+
+        // Perform upload.
+        $mode = tool_uploadcourse_processor::MODE_UPDATE_ONLY;
+        $updatemode = tool_uploadcourse_processor::UPDATE_ALL_WITH_DATA_ONLY;
+        $dataupload = [
+            'shortname' => $course->shortname,
+            'customfield_mydatefield' => '2020-04-01 16:00',
+            'customfield_mytextfield' => 'Hello',
+            'customfield_mytextareafield' => 'Is it me you\'re looking for?',
+        ];
+
+        $uploader = new tool_uploadcourse_course($mode, $updatemode, $dataupload);
+        $this->assertTrue($uploader->prepare());
+        $uploader->proceed();
+
+        // Confirm presence of course custom fields.
+        $data = \core_course\customfield\course_handler::create()->export_instance_data_object($course->id);
+        $this->assertEqualsIgnoringCase('Wednesday, 1 April 2020, 4:00 PM', $data->mydatefield);
+        $this->assertEquals($dataupload['customfield_mytextfield'], $data->mytextfield);
+        $this->assertStringContainsString($dataupload['customfield_mytextareafield'], $data->mytextareafield);
+    }
+
+    /**
+     * Test upload processing of course custom field that is required but empty
+     */
+    public function test_custom_fields_data_required() {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course(['shortname' => 'C1']);
+
+        // Create our custom field.
+        $category = $this->get_customfield_generator()->create_category();
+        $this->create_custom_field($category, 'select', 'myselect', ['required' => true, 'options' => "Cat\nDog"]);
+
+        $mode = tool_uploadcourse_processor::MODE_UPDATE_ONLY;
+        $updatemode = tool_uploadcourse_processor::UPDATE_ALL_WITH_DATA_ONLY;
+        $dataupload = [
+            'shortname' => $course->shortname,
+            'customfield_myselect' => null,
+        ];
+
+        $uploader = new tool_uploadcourse_course($mode, $updatemode, $dataupload);
+        $this->assertFalse($uploader->prepare());
+        $this->assertArrayHasKey('customfieldinvalid', $uploader->get_errors());
+
+        // Try again with a default value.
+        $defaults = [
+            'customfield_myselect' => 2, // Our second option: Dog.
+        ];
+
+        $uploader = new tool_uploadcourse_course($mode, $updatemode, $dataupload, $defaults);
+        $this->assertTrue($uploader->prepare());
+        $uploader->proceed();
+
+        // Confirm presence of course custom fields.
+        $data = \core_course\customfield\course_handler::create()->export_instance_data_object($course->id);
+        $this->assertEquals('Dog', $data->myselect);
+    }
+
+    /**
+     * Test upload processing of course custom field with an invalid select option
+     */
+    public function test_custom_fields_data_invalid_select_option() {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course(['shortname' => 'C1']);
+
+        // Create our custom field.
+        $category = $this->get_customfield_generator()->create_category();
+        $this->create_custom_field($category, 'select', 'myselect',
+            ['required' => true, 'options' => "Cat\nDog", 'defaultvalue' => 'Cat']);
+
+        $mode = tool_uploadcourse_processor::MODE_UPDATE_ONLY;
+        $updatemode = tool_uploadcourse_processor::UPDATE_ALL_WITH_DATA_ONLY;
+        $dataupload = [
+            'shortname' => $course->shortname,
+            'customfield_myselect' => 'Fish', // No, invalid.
+        ];
+
+        $uploader = new tool_uploadcourse_course($mode, $updatemode, $dataupload);
+        $this->assertTrue($uploader->prepare());
+        $uploader->proceed();
+
+        // Confirm presence of course custom fields.
+        $data = \core_course\customfield\course_handler::create()->export_instance_data_object($course->id);
+        $this->assertEquals('Cat', $data->myselect);
+    }
+
+    /**
+     * Test upload processing of course custom field with an out of range date
+     */
+    public function test_custom_fields_data_invalid_date() {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course(['shortname' => 'C1']);
+
+        // Create our custom field.
+        $category = $this->get_customfield_generator()->create_category();
+        $this->create_custom_field($category, 'date', 'mydate',
+            ['mindate' => strtotime('2020-04-01'), 'maxdate' => '2020-04-30']);
+
+        $mode = tool_uploadcourse_processor::MODE_UPDATE_ONLY;
+        $updatemode = tool_uploadcourse_processor::UPDATE_ALL_WITH_DATA_ONLY;
+        $dataupload = [
+            'shortname' => $course->shortname,
+            'customfield_mydate' => '2020-05-06', // Out of range.
+        ];
+
+        $uploader = new tool_uploadcourse_course($mode, $updatemode, $dataupload);
+        $this->assertFalse($uploader->prepare());
+        $this->assertArrayHasKey('customfieldinvalid', $uploader->get_errors());
     }
 
     public function test_idnumber_problems() {
@@ -1183,7 +1470,34 @@ class tool_uploadcourse_course_testcase extends advanced_testcase {
         $co = new tool_uploadcourse_course($mode, $updatemode, $data, array(), $importoptions);
         $this->assertFalse($co->prepare());
         $this->assertArrayHasKey('cannotrenameshortnamealreadyinuse', $co->get_errors());
-
     }
 
+    /**
+     * Get custom field plugin generator
+     *
+     * @return core_customfield_generator
+     */
+    protected function get_customfield_generator() : core_customfield_generator {
+        return $this->getDataGenerator()->get_plugin_generator('core_customfield');
+    }
+
+    /**
+     * Helper method to create custom course field
+     *
+     * @param \core_customfield\category_controller $category
+     * @param string $type
+     * @param string $shortname
+     * @param array $configdata
+     * @return \core_customfield\field_controller
+     */
+    protected function create_custom_field(\core_customfield\category_controller $category, string $type, string $shortname,
+            array $configdata = []) : \core_customfield\field_controller {
+
+        return $this->get_customfield_generator()->create_field([
+            'categoryid' => $category->get('id'),
+            'type' => $type,
+            'shortname' => $shortname,
+            'configdata' => $configdata,
+        ]);
+    }
 }

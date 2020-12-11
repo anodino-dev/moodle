@@ -43,7 +43,7 @@ class mod_forum_vaults_discussion_testcase extends advanced_testcase {
     /**
      * Set up function for tests.
      */
-    public function setUp() {
+    public function setUp(): void {
         $vaultfactory = \mod_forum\local\container::get_vault_factory();
         $this->vault = $vaultfactory->get_discussion_vault();
     }
@@ -90,5 +90,33 @@ class mod_forum_vaults_discussion_testcase extends advanced_testcase {
 
         $discussionentity = $vault->get_first_discussion_in_forum($forumentity);
         $this->assertEquals($discussion2->id, $discussionentity->get_id());
+    }
+
+    /**
+     * Test get_all_discussions_in_forum
+     */
+    public function test_get_all_discussions_in_forum() {
+        $this->resetAfterTest();
+
+        $vault = $this->vault;
+        $entityfactory = \mod_forum\local\container::get_entity_factory();
+        $datagenerator = $this->getDataGenerator();
+        $user = $datagenerator->create_user();
+        $course = $datagenerator->create_course();
+        $forum = $datagenerator->create_module('forum', ['course' => $course->id]);
+        $coursemodule = get_coursemodule_from_instance('forum', $forum->id);
+        $context = context_module::instance($coursemodule->id);
+        $forumentity = $entityfactory->get_forum_from_stdclass($forum, $context, $coursemodule, $course);
+
+        $this->assertEquals([], $vault->get_all_discussions_in_forum($forumentity));
+
+        [$discussion1, $post] = $this->helper_post_to_forum($forum, $user, ['timemodified' => 2]);
+        [$discussion2, $post] = $this->helper_post_to_forum($forum, $user, ['timemodified' => 1]);
+        [$discussion3, $post] = $this->helper_post_to_forum($forum, $user, ['timemodified' => 3]);
+
+        $discussionentity = $vault->get_all_discussions_in_forum($forumentity);
+        $this->assertArrayHasKey($discussion1->id, $discussionentity); // Order is not guaranteed, so just verify element existence.
+        $this->assertArrayHasKey($discussion2->id, $discussionentity);
+        $this->assertArrayHasKey($discussion3->id, $discussionentity);
     }
 }

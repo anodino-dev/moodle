@@ -525,6 +525,18 @@ EXPECTED;
                 'email' => "moodle@example.com>\r\nRCPT TO:<victim@example.com",
                 'result' => false
             ],
+            [
+                'email' => 'greater>than@example.com',
+                'result' => false
+            ],
+            [
+                'email' => 'less<than@example.com',
+                'result' => false
+            ],
+            [
+                'email' => '"this<is>validbutwerejectit"@example.com',
+                'result' => false
+            ],
 
             // Extra email addresses from Wikipedia page on Email Addresses.
             // Valid.
@@ -794,7 +806,7 @@ EXPECTED;
 
         $html = "<p>This is a test.</p><p><img src=\"${url1}\" alt=\"\" role=\"presentation\"></p>
                 <br>Test content.<p></p><p><img src=\"{$url2}\" alt=\"\" width=\"2048\" height=\"1536\"
-                role=\"presentation\" class=\"img-responsive atto_image_button_text-bottom\"><br></p>";
+                role=\"presentation\" class=\"img-fluid atto_image_button_text-bottom\"><br></p>";
         $draftareas = array(
             array(
                 'urlbase' => 'draftfile.php',

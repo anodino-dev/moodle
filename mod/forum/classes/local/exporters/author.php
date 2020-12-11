@@ -147,6 +147,7 @@ class author extends exporter {
         $authorcontextid = $this->authorcontextid;
         $urlfactory = $this->related['urlfactory'];
         $context = $this->related['context'];
+        $forum = $this->related['forum'];
 
         if ($this->canview) {
             if ($author->is_deleted()) {
@@ -156,16 +157,20 @@ class author extends exporter {
                     'isdeleted' => true,
                     'groups' => [],
                     'urls' => [
-                        'profile' => ($urlfactory->get_author_profile_url($author))->out(false),
+                        'profile' => ($urlfactory->get_author_profile_url($author, $forum->get_course_id()))->out(false),
                         'profileimage' => ($urlfactory->get_author_profile_image_url($author, $authorcontextid))->out(false)
                     ]
                 ];
             } else {
-                $groups = array_map(function($group) use ($urlfactory, $context) {
+                $groups = array_map(function($group) use ($urlfactory, $context, $output) {
                     $imageurl = null;
                     $groupurl = null;
                     if (!$group->hidepicture) {
                         $imageurl = get_group_picture_url($group, $group->courseid, true);
+                        if (empty($imageurl)) {
+                            // Get a generic group image URL.
+                            $imageurl = $output->image_url('g/g1');
+                        }
                     }
                     if (course_can_view_participants($context)) {
                         $groupurl = $urlfactory->get_author_group_url($group);
@@ -188,7 +193,7 @@ class author extends exporter {
                     'isdeleted' => false,
                     'groups' => $groups,
                     'urls' => [
-                        'profile' => ($urlfactory->get_author_profile_url($author))->out(false),
+                        'profile' => ($urlfactory->get_author_profile_url($author, $forum->get_course_id()))->out(false),
                         'profileimage' => ($urlfactory->get_author_profile_image_url($author, $authorcontextid))->out(false)
                     ]
                 ];
@@ -216,7 +221,8 @@ class author extends exporter {
     protected static function define_related() {
         return [
             'urlfactory' => 'mod_forum\local\factories\url',
-            'context' => 'context'
+            'context' => 'context',
+            'forum' => 'mod_forum\local\entities\forum',
         ];
     }
 }

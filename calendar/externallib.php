@@ -319,6 +319,7 @@ class core_calendar_external extends external_api {
             $event = (array) $eventobj;
             // Description formatting.
             $calendareventobj = new calendar_event($event);
+            $event['name'] = $calendareventobj->format_external_name();
             list($event['description'], $event['format']) = $calendareventobj->format_external_text();
 
             if ($hassystemcap) {
@@ -365,7 +366,7 @@ class core_calendar_external extends external_api {
                 'events' => new external_multiple_structure( new external_single_structure(
                         array(
                             'id' => new external_value(PARAM_INT, 'event id'),
-                            'name' => new external_value(PARAM_TEXT, 'event name'),
+                            'name' => new external_value(PARAM_RAW, 'event name'),
                             'description' => new external_value(PARAM_RAW, 'Description', VALUE_OPTIONAL, null, NULL_ALLOWED),
                             'format' => new external_format_value('description'),
                             'courseid' => new external_value(PARAM_INT, 'course id'),
@@ -745,7 +746,7 @@ class core_calendar_external extends external_api {
                         'events' => new external_multiple_structure( new external_single_structure(
                                 array(
                                     'id' => new external_value(PARAM_INT, 'event id'),
-                                    'name' => new external_value(PARAM_TEXT, 'event name'),
+                                    'name' => new external_value(PARAM_RAW, 'event name'),
                                     'description' => new external_value(PARAM_RAW, 'Description', VALUE_OPTIONAL),
                                     'format' => new external_format_value('description'),
                                     'courseid' => new external_value(PARAM_INT, 'course id'),
@@ -797,19 +798,20 @@ class core_calendar_external extends external_api {
         self::validate_context($context);
         $warnings = array();
 
-        $legacyevent = calendar_event::load($eventid);
-        // Must check we can see this event.
-        if (!calendar_view_event_allowed($legacyevent)) {
+        $eventvault = event_container::get_event_vault();
+        if ($event = $eventvault->get_event_by_id($eventid)) {
+            $mapper = event_container::get_event_mapper();
+            if (!calendar_view_event_allowed($mapper->from_event_to_legacy_event($event))) {
+                $event = null;
+            }
+        }
+
+        if (!$event) {
             // We can't return a warning in this case because the event is not optional.
             // We don't know the context for the event and it's not worth loading it.
             $syscontext = context_system::instance();
             throw new \required_capability_exception($syscontext, 'moodle/course:view', 'nopermission', '');
         }
-
-        $legacyevent->count_repeats();
-
-        $eventmapper = event_container::get_event_mapper();
-        $event = $eventmapper->from_legacy_event_to_event($legacyevent);
 
         $cache = new events_related_objects_cache([$event]);
         $relatedobjects = [
@@ -988,10 +990,11 @@ class core_calendar_external extends external_api {
      * @param   int     $categoryid The category to be included
      * @param   bool    $includenavigation Whether to include navigation
      * @param   bool    $mini Whether to return the mini month view or not
+     * @param   int     $day The day we want to keep as the current day
      * @return  array
      */
-    public static function get_calendar_monthly_view($year, $month, $courseid, $categoryid, $includenavigation, $mini) {
-        global $DB, $USER, $PAGE;
+    public static function get_calendar_monthly_view($year, $month, $courseid, $categoryid, $includenavigation, $mini, $day) {
+        global $USER, $PAGE;
 
         // Parameter validation.
         $params = self::validate_parameters(self::get_calendar_monthly_view_parameters(), [
@@ -1001,6 +1004,7 @@ class core_calendar_external extends external_api {
             'categoryid' => $categoryid,
             'includenavigation' => $includenavigation,
             'mini' => $mini,
+            'day' => $day,
         ]);
 
         $context = \context_user::instance($USER->id);
@@ -1009,7 +1013,7 @@ class core_calendar_external extends external_api {
 
         $type = \core_calendar\type_factory::get_calendar_instance();
 
-        $time = $type->convert_to_timestamp($params['year'], $params['month'], 1);
+        $time = $type->convert_to_timestamp($params['year'], $params['month'], $params['day']);
         $calendar = \calendar_information::create($time, $params['courseid'], $params['categoryid']);
         self::validate_context($calendar->context);
 
@@ -1045,6 +1049,7 @@ class core_calendar_external extends external_api {
                     false,
                     NULL_ALLOWED
                 ),
+                'day' => new external_value(PARAM_INT, 'Day to be viewed', VALUE_DEFAULT, 1),
             ]
         );
     }
@@ -1368,6 +1373,84 @@ class core_calendar_external extends external_api {
                     new external_value(PARAM_NOTAGS, 'Allowed event types to be created in the given course.')
                 ),
                 'warnings' => new external_warnings(),
+            ]
+        );
+    }
+
+    /**
+     * Convert the specified dates into unix timestamps.
+     *
+     * @param   array $datetimes Array of arrays containing date time details, each in the format:
+     *           ['year' => a, 'month' => b, 'day' => c,
+     *            'hour' => d (optional), 'minute' => e (optional), 'key' => 'x' (optional)]
+     * @return  array Provided array of dates converted to unix timestamps
+     * @throws moodle_exception If one or more of the dates provided does not convert to a valid timestamp.
+     */
+    public static function get_timestamps($datetimes) {
+        $params = self::validate_parameters(self::get_timestamps_parameters(), ['data' => $datetimes]);
+
+        $type = \core_calendar\type_factory::get_calendar_instance();
+        $timestamps = ['timestamps' => []];
+
+        foreach ($params['data'] as $key => $datetime) {
+            $hour = $datetime['hour'] ?? 0;
+            $minute = $datetime['minute'] ?? 0;
+
+            try {
+                $timestamp = $type->convert_to_timestamp(
+                    $datetime['year'], $datetime['month'], $datetime['day'], $hour, $minute);
+
+                $timestamps['timestamps'][] = [
+                    'key' => $datetime['key'] ?? $key,
+                    'timestamp' => $timestamp,
+                ];
+
+            } catch (Exception $e) {
+                throw new moodle_exception('One or more of the dates provided were invalid');
+            }
+        }
+
+        return $timestamps;
+    }
+
+    /**
+     * Describes the parameters for get_timestamps.
+     *
+     * @return external_function_parameters
+     */
+    public static function get_timestamps_parameters() {
+        return new external_function_parameters ([
+            'data' => new external_multiple_structure(
+                new external_single_structure(
+                    [
+                        'key' => new external_value(PARAM_ALPHANUMEXT, 'key', VALUE_OPTIONAL),
+                        'year' => new external_value(PARAM_INT, 'year'),
+                        'month' => new external_value(PARAM_INT, 'month'),
+                        'day' => new external_value(PARAM_INT, 'day'),
+                        'hour' => new external_value(PARAM_INT, 'hour', VALUE_OPTIONAL),
+                        'minute' => new external_value(PARAM_INT, 'minute', VALUE_OPTIONAL),
+                    ]
+                )
+            )
+        ]);
+    }
+
+    /**
+     * Describes the timestamps return format.
+     *
+     * @return external_single_structure
+     */
+    public static function get_timestamps_returns() {
+        return new external_single_structure(
+            [
+                'timestamps' => new external_multiple_structure(
+                    new external_single_structure(
+                        [
+                            'key' => new external_value(PARAM_ALPHANUMEXT, 'Timestamp key'),
+                            'timestamp' => new external_value(PARAM_INT, 'Unix timestamp'),
+                        ]
+                    )
+                )
             ]
         );
     }

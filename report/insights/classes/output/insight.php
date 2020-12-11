@@ -89,7 +89,14 @@ class insight implements \renderable, \templatable {
         $data->modelid = $this->model->get_id();
         $data->contextid = $this->context->id;
         $data->predictionid = $predictiondata->id;
-        $data->insightname = format_string($target->get_name());
+
+        $targetname = $target->get_name();
+        $data->insightname = format_string($targetname);
+
+        $targetinfostr = $targetname->get_identifier() . 'info';
+        if (get_string_manager()->string_exists($targetinfostr, $targetname->get_component())) {
+            $data->insightdescription = get_string($targetinfostr, $targetname->get_component());
+        }
 
         $data->showpredictionheading = true;
         if (!$target->is_linear()) {
@@ -151,6 +158,11 @@ class insight implements \renderable, \templatable {
             list($obj->style, $obj->outcomeicon) = self::get_calculation_display($calculation->indicator,
                 floatval($calculation->value), $output, $calculation->subtype);
 
+            $identifier = $calculation->indicator->get_name()->get_identifier() . 'def';
+            $component = $calculation->indicator->get_name()->get_component();
+            if (get_string_manager()->string_exists($identifier, $component)) {
+                $obj->outcomehelp = (new \help_icon($identifier, $component))->export_for_template($output);
+            }
             $data->calculations[] = $obj;
         }
 

@@ -139,12 +139,27 @@ class manager {
     const CONFIG_SHIPPED_VERSION = 'shipped_version';
 
     /**
+     * Helper method to initialize admin page, setting appropriate extra URL parameters
+     *
+     * @param string $action
+     */
+    protected function setup_admin_externalpage(string $action): void {
+        admin_externalpage_setup('tool_usertours/tours', '', array_filter([
+            'action' => $action,
+            'id' => optional_param('id', 0, PARAM_INT),
+            'tourid' => optional_param('tourid', 0, PARAM_INT),
+            'direction' => optional_param('direction', 0, PARAM_INT),
+        ]));
+    }
+
+    /**
      * This is the entry point for this controller class.
      *
      * @param   string  $action     The action to perform.
      */
     public function execute($action) {
-        admin_externalpage_setup('tool_usertours/tours');
+        $this->setup_admin_externalpage($action);
+
         // Add the main content.
         switch($action) {
             case self::ACTION_NEWTOUR:
@@ -593,42 +608,46 @@ class manager {
     }
 
     /**
-     * Get the first tour matching the current page URL.
+     * Get all tours for the current page URL.
      *
-     * @param   bool        $reset      Forcibly update the current tour
-     * @return  tour
+     * @param   bool        $reset      Forcibly update the current tours
+     * @return  array
      */
-    public static function get_current_tour($reset = false) {
+    public static function get_current_tours($reset = false): array {
         global $PAGE;
 
-        static $tour = false;
+        static $tours = false;
 
-        if ($tour === false || $reset) {
-            $tour = self::get_matching_tours($PAGE->url);
+        if ($tours === false || $reset) {
+            $tours = self::get_matching_tours($PAGE->url);
         }
 
-        return $tour;
+        return $tours;
     }
 
     /**
-     * Get the first tour matching the specified URL.
+     * Get all tours matching the specified URL.
      *
      * @param   moodle_url  $pageurl        The URL to match.
-     * @return  tour
+     * @return  array
      */
-    public static function get_matching_tours(\moodle_url $pageurl) {
+    public static function get_matching_tours(\moodle_url $pageurl): array {
         global $PAGE;
 
         $tours = cache::get_matching_tourdata($pageurl);
 
-        foreach ($tours as $record) {
-            $tour = tour::load_from_record($record);
-            if ($tour->is_enabled() && $tour->matches_all_filters($PAGE->context)) {
-                return $tour;
+        $matches = [];
+        if ($tours) {
+            $filters = helper::get_all_filters();
+            foreach ($tours as $record) {
+                $tour = tour::load_from_record($record);
+                if ($tour->is_enabled() && $tour->matches_all_filters($PAGE->context, $filters)) {
+                    $matches[] = $tour;
+                }
             }
         }
 
-        return null;
+        return $matches;
     }
 
     /**
@@ -762,6 +781,13 @@ class manager {
      * @param   int     $direction
      */
     protected static function _move_tour(tour $tour, $direction) {
+        // We can't move the first tour higher, nor the last tour any lower.
+        if (($tour->is_first_tour() && $direction == helper::MOVE_UP) ||
+                ($tour->is_last_tour() && $direction == helper::MOVE_DOWN)) {
+
+            return;
+        }
+
         $currentsortorder   = $tour->get_sortorder();
         $targetsortorder    = $currentsortorder + $direction;
 
@@ -838,21 +864,19 @@ class manager {
         // the format filename => version. The version value needs to
         // be increased if the tour has been updated.
         $shippedtours = [
-            '36_dashboard.json' => 3
         ];
 
         // These are tours that we used to ship but don't ship any longer.
         // We do not remove them, but we do disable them.
         $unshippedtours = [
+            // Formerly included in Moodle 3.2.0.
             'boost_administrator.json' => 1,
             'boost_course_view.json' => 1,
-        ];
 
-        if ($CFG->messaging) {
-            $shippedtours['36_messaging.json'] = 3;
-        } else {
-            $unshippedtours['36_messaging.json'] = 3;
-        }
+            // Formerly included in Moodle 3.6.0.
+            '36_dashboard.json' => 3,
+            '36_messaging.json' => 3,
+        ];
 
         $existingtourrecords = $DB->get_recordset('tool_usertours_tours');
 
@@ -889,6 +913,9 @@ class manager {
             }
         }
         $existingtourrecords->close();
+
+        // Ensure we correct the sortorder in any existing tours, prior to adding latest shipped tours.
+        helper::reset_tour_sortorder();
 
         foreach (array_reverse($shippedtours) as $filename => $version) {
             $filepath = $CFG->dirroot . "/{$CFG->admin}/tool/usertours/tours/" . $filename;

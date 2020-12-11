@@ -1,6 +1,5 @@
 <?php
-
-// This file is part of Moodle - http://moodle.org/
+// This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -13,7 +12,7 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
  * Automatically generated strings for Moodle installer
@@ -46,7 +45,7 @@ $string['downloadedfilecheckfailed'] = 'Ha fallat la comprovació del fitxer bai
 $string['invalidmd5'] = 'L\'md5 no és vàlid. Torneu a provar-ho';
 $string['missingrequiredfield'] = 'Falta algun camp necessari';
 $string['remotedownloaderror'] = '<p>No s\'ha pogut baixar el component al vostre servidor. Verifiqueu els paràmetres del servidor intermediari. Es recomana vivament l\'extensió cURL de PHP.</p>
-<p>Haureu de baixar manualment el fitxer <a href="{$a->url}">{$a->url}</a>, copiar-lo a la ubicació «{$a->dest}» del vostre servidor i descomprimir-lo allí.</p>';
+<p>Haureu de baixar manualment el fitxer <a href="{$a->url}">{$a->url}</a>, copiar-lo a la ubicació «{$a->dest}» del vostre servidor i descomprimir-lo allà.</p>';
 $string['wrongdestpath'] = 'El camí de destinació és erroni';
 $string['wrongsourcebase'] = 'L\'adreça (URL) base de la font és errònia';
 $string['wrongzipfilename'] = 'El nom del fitxer ZIP és erroni';

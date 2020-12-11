@@ -24,6 +24,7 @@
 
 namespace mod_forum\privacy;
 
+use core_grades\component_gradeitem as gradeitem;
 use \core_privacy\local\request\userlist;
 use \core_privacy\local\request\approved_contextlist;
 use \core_privacy\local\request\approved_userlist;
@@ -32,8 +33,11 @@ use \core_privacy\local\request\writer;
 use \core_privacy\local\request\helper as request_helper;
 use \core_privacy\local\metadata\collection;
 use \core_privacy\local\request\transform;
+use tool_dataprivacy\context_instance;
 
 defined('MOODLE_INTERNAL') || die();
+
+require_once($CFG->dirroot . '/grade/grading/lib.php');
 
 /**
  * Implementation of the privacy subsystem plugin provider for the forum activity module.
@@ -130,6 +134,13 @@ class provider implements
             'postid' => 'privacy:metadata:forum_queue:postid',
             'timemodified' => 'privacy:metadata:forum_queue:timemodified'
         ], 'privacy:metadata:forum_queue');
+
+        // The 'forum_grades' table stores grade data.
+        $items->add_database_table('forum_grades', [
+            'userid' => 'privacy:metadata:forum_grades:userid',
+            'forum' => 'privacy:metadata:forum_grades:forum',
+            'grade' => 'privacy:metadata:forum_grades:grade',
+        ], 'privacy:metadata:forum_grades');
 
         // Forum posts can be tagged and rated.
         $items->link_subsystem('core_tag', 'privacy:metadata:core_tag');
@@ -256,6 +267,17 @@ class provider implements
         $params += $ratingsql->params;
         $contextlist->add_from_sql($sql, $params);
 
+        // Forum grades.
+        $sql = "SELECT c.id
+                  FROM {context} c
+                  JOIN {course_modules} cm ON cm.id = c.instanceid AND c.contextlevel = :contextlevel
+                  JOIN {modules} m ON m.id = cm.module AND m.name = :modname
+                  JOIN {forum} f ON f.id = cm.instance
+                  JOIN {forum_grades} fg ON fg.forum = f.id
+                 WHERE fg.userid = :userid
+        ";
+        $contextlist->add_from_sql($sql, $params);
+
         return $contextlist;
     }
 
@@ -347,6 +369,15 @@ class provider implements
                   JOIN {modules} m ON m.id = cm.module AND m.name = :modulename
                   JOIN {forum} f ON f.id = cm.instance
                   JOIN {forum_track_prefs} pref ON pref.forumid = f.id
+                 WHERE cm.id = :instanceid";
+        $userlist->add_from_sql('userid', $sql, $params);
+
+        // Forum grades.
+        $sql = "SELECT fg.userid
+                  FROM {course_modules} cm
+                  JOIN {modules} m ON m.id = cm.module AND m.name = :modulename
+                  JOIN {forum} f ON f.id = cm.instance
+                  JOIN {forum_grades} fg ON fg.forum = f.id
                  WHERE cm.id = :instanceid";
         $userlist->add_from_sql('userid', $sql, $params);
     }
@@ -511,6 +542,23 @@ class provider implements
         $params['userid'] = $userid;
         $tracked = $DB->get_records_sql_menu($sql, $params);
 
+        // Forum grades.
+        $sql = "SELECT
+                    c.id AS contextid,
+                    fg.grade AS grade,
+                    f.grade_forum AS gradetype
+                  FROM {context} c
+                  JOIN {course_modules} cm ON cm.id = c.instanceid
+                  JOIN {forum} f ON f.id = cm.instance
+                  JOIN {forum_grades} fg ON fg.forum = f.id
+                 WHERE (
+                    fg.userid = :userid AND
+                    c.id {$contextsql}
+                )
+        ";
+        $params['userid'] = $userid;
+        $grades = $DB->get_records_sql_menu($sql, $params);
+
         $sql = "SELECT
                     c.id AS contextid,
                     f.*,
@@ -549,6 +597,9 @@ class provider implements
             }
             if (isset($tracked[$forum->contextid])) {
                 static::export_tracking_data($userid, $forum, $tracked[$forum->contextid]);
+            }
+            if (isset($grades[$forum->contextid])) {
+                static::export_grading_data($userid, $forum, $grades[$forum->contextid]);
             }
         }
         $forums->close();
@@ -641,35 +692,44 @@ class provider implements
     protected static function export_all_posts(int $userid, array $mappings) {
         global $DB;
 
-        // Find all of the posts, and post subscriptions for this forum.
-        list($foruminsql, $forumparams) = $DB->get_in_or_equal(array_keys($mappings), SQL_PARAMS_NAMED);
-        $ratingsql = \core_rating\privacy\provider::get_sql_join('rat', 'mod_forum', 'post', 'p.id', $userid);
-        $sql = "SELECT
-                    p.discussion AS id,
-                    f.id AS forumid,
-                    d.name,
-                    d.groupid
-                  FROM {forum} f
-                  JOIN {forum_discussions} d ON d.forum = f.id
-                  JOIN {forum_posts} p ON p.discussion = d.id
-             LEFT JOIN {forum_read} fr ON fr.postid = p.id AND fr.userid = :readuserid
-            {$ratingsql->join}
-                 WHERE f.id ${foruminsql} AND
-                (
-                    p.userid = :postuserid OR
-                    p.privatereplyto = :privatereplyrecipient OR
-                    fr.id IS NOT NULL OR
-                    {$ratingsql->userwhere}
-                )
-              GROUP BY f.id, p.discussion, d.name, d.groupid
-        ";
+        $commonsql = "SELECT p.discussion AS id, f.id AS forumid, d.name, d.groupid
+                        FROM {forum} f
+                        JOIN {forum_discussions} d ON d.forum = f.id
+                        JOIN {forum_posts} p ON p.discussion = d.id";
+
+        // All discussions with posts authored by the user or containing private replies to the user.
+        list($foruminsql1, $forumparams1) = $DB->get_in_or_equal(array_keys($mappings), SQL_PARAMS_NAMED);
+        $sql1 = "{$commonsql}
+                       WHERE f.id {$foruminsql1}
+                         AND (p.userid = :postuserid OR p.privatereplyto = :privatereplyrecipient)";
+
+        // All discussions with the posts marked as read by the user.
+        list($foruminsql2, $forumparams2) = $DB->get_in_or_equal(array_keys($mappings), SQL_PARAMS_NAMED);
+        $sql2 = "{$commonsql}
+                        JOIN {forum_read} fr ON fr.postid = p.id
+                       WHERE f.id {$foruminsql2}
+                         AND fr.userid = :readuserid";
+
+        // All discussions with ratings provided by the user.
+        list($foruminsql3, $forumparams3) = $DB->get_in_or_equal(array_keys($mappings), SQL_PARAMS_NAMED);
+        $ratingsql = \core_rating\privacy\provider::get_sql_join('rat', 'mod_forum', 'post', 'p.id', $userid, true);
+        $sql3 = "{$commonsql}
+                 {$ratingsql->join}
+                       WHERE f.id {$foruminsql3}
+                         AND {$ratingsql->userwhere}";
+
+        $sql = "SELECT *
+                  FROM ({$sql1} UNION {$sql2} UNION {$sql3}) united
+              GROUP BY id, forumid, name, groupid";
 
         $params = [
-            'postuserid'    => $userid,
-            'readuserid'    => $userid,
+            'postuserid' => $userid,
+            'readuserid' => $userid,
             'privatereplyrecipient' => $userid,
         ];
-        $params += $forumparams;
+        $params += $forumparams1;
+        $params += $forumparams2;
+        $params += $forumparams3;
         $params += $ratingsql->params;
 
         $discussions = $DB->get_records_sql($sql, $params);
@@ -969,6 +1029,46 @@ class provider implements
         return false;
     }
 
+    protected static function export_grading_data(int $userid, \stdClass $forum, int $grade) {
+        global $USER;
+        if (null !== $grade) {
+            $context = \context_module::instance($forum->cmid);
+            $exportpath = array_merge([],
+                [get_string('privacy:metadata:forum_grades', 'mod_forum')]);
+            $gradingmanager = get_grading_manager($context, 'mod_forum', 'forum');
+            $controller = $gradingmanager->get_active_controller();
+
+            // Check for advanced grading and retrieve that information.
+            if (isset($controller)) {
+                $gradeduser = \core_user::get_user($userid);
+                // Fetch the gradeitem instance.
+                $gradeitem = gradeitem::instance($controller->get_component(), $context, $controller->get_area());
+                $grade = $gradeitem->get_grade_for_user($gradeduser, $USER);
+                $controllercontext = $controller->get_context();
+                \core_grading\privacy\provider::export_item_data($controllercontext, $grade->id, $exportpath);
+            } else {
+                self::export_grade_data($grade, $context, $forum, $exportpath);
+            }
+            // The user has a grade for this forum.
+            writer::with_context(\context_module::instance($forum->cmid))
+                ->export_metadata($exportpath, 'gradingenabled', 1, get_string('privacy:metadata:forum_grades:grade', 'mod_forum'));
+
+            return true;
+        }
+
+        return false;
+    }
+
+    protected static function export_grade_data(int $grade, \context $context, \stdClass $forum, array $path) {
+        $gradedata = (object)[
+            'forum' => $forum->name,
+            'grade' => $grade,
+        ];
+
+        writer::with_context($context)
+            ->export_data($path, $gradedata);
+    }
+
     /**
      * Store read-tracking information about a particular forum post.
      *
@@ -1024,8 +1124,18 @@ class provider implements
 
         $DB->delete_records('forum_track_prefs', ['forumid' => $forumid]);
         $DB->delete_records('forum_subscriptions', ['forum' => $forumid]);
+        $DB->delete_records('forum_grades', ['forum' => $forumid]);
         $DB->delete_records('forum_read', ['forumid' => $forumid]);
         $DB->delete_records('forum_digests', ['forum' => $forumid]);
+
+        // Delete advanced grading information.
+        $gradingmanager = get_grading_manager($context, 'mod_forum', 'forum');
+        $controller = $gradingmanager->get_active_controller();
+        if (isset($controller)) {
+            \core_grading\privacy\provider::delete_instance_data($context);
+        }
+
+        $DB->delete_records('forum_grades', ['forum' => $forumid]);
 
         // Delete all discussion items.
         $DB->delete_records_select(
@@ -1102,6 +1212,22 @@ class provider implements
             );
 
             $DB->delete_records('forum_discussion_subs', [
+                'forum' => $forum->id,
+                'userid' => $userid,
+            ]);
+
+            // Handle any advanced grading method data first.
+            $grades = $DB->get_records('forum_grades', ['forum' => $forum->id, 'userid' => $user->id]);
+            $gradingmanager = get_grading_manager($context, 'forum_grades', 'forum');
+            $controller = $gradingmanager->get_active_controller();
+            foreach ($grades as $grade) {
+                // Delete advanced grading information.
+                if (isset($controller)) {
+                    \core_grading\privacy\provider::delete_instance_data($context, $grade->id);
+                }
+            }
+            // Advanced grading methods have been cleared, lets clear our module now.
+            $DB->delete_records('forum_grades', [
                 'forum' => $forum->id,
                 'userid' => $userid,
             ]);
@@ -1194,5 +1320,19 @@ class provider implements
         $fs = get_file_storage();
         $fs->delete_area_files_select($context->id, 'mod_forum', 'post', "IN ($postidsql)", $params);
         $fs->delete_area_files_select($context->id, 'mod_forum', 'attachment', "IN ($postidsql)", $params);
+
+        list($sql, $params) = $DB->get_in_or_equal($userlist->get_userids(), SQL_PARAMS_NAMED);
+        $params['forum'] = $forum->id;
+        // Delete advanced grading information.
+        $grades = $DB->get_records_select('forum_grades', "forum = :forum AND userid $sql", $params);
+        $gradeids = array_keys($grades);
+        $gradingmanager = get_grading_manager($context, 'mod_forum', 'forum');
+        $controller = $gradingmanager->get_active_controller();
+        if (isset($controller)) {
+            // Careful here, if no gradeids are provided then all data is deleted for the context.
+            if (!empty($gradeids)) {
+                \core_grading\privacy\provider::delete_data_for_instances($context, $gradeids);
+            }
+        }
     }
 }

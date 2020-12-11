@@ -47,7 +47,7 @@ class tool_usertours_manager_testcase extends advanced_testcase {
     /**
      * Setup to store the DB reference.
      */
-    public function setUp() {
+    public function setUp(): void {
         global $DB;
 
         $this->db = $DB;
@@ -56,7 +56,7 @@ class tool_usertours_manager_testcase extends advanced_testcase {
     /**
      * Tear down to restore the original DB reference.
      */
-    public function tearDown() {
+    public function tearDown(): void {
         global $DB;
 
         $DB = $this->db;
@@ -123,6 +123,83 @@ class tool_usertours_manager_testcase extends advanced_testcase {
     }
 
     /**
+     * Data provider for test_move_tour
+     *
+     * @return array
+     */
+    public function move_tour_provider() {
+        $alltours = [
+            ['name' => 'Tour 1'],
+            ['name' => 'Tour 2'],
+            ['name' => 'Tour 3'],
+        ];
+
+        return [
+            'Move up' => [
+                $alltours,
+                'Tour 2',
+                \tool_usertours\helper::MOVE_UP,
+                0,
+            ],
+            'Move down' => [
+                $alltours,
+                'Tour 2',
+                \tool_usertours\helper::MOVE_DOWN,
+                2,
+            ],
+            'Move up (first)' => [
+                $alltours,
+                'Tour 1',
+                \tool_usertours\helper::MOVE_UP,
+                0,
+            ],
+            'Move down (last)' => [
+                $alltours,
+                'Tour 3',
+                \tool_usertours\helper::MOVE_DOWN,
+                2,
+            ],
+        ];
+    }
+
+    /**
+     * Test moving tours (changing sortorder)
+     *
+     * @dataProvider move_tour_provider
+     *
+     * @param array $alltours
+     * @param string $movetourname
+     * @param int $direction
+     * @param int $expectedsortorder
+     * @return void
+     */
+    public function test_move_tour($alltours, $movetourname, $direction, $expectedsortorder) {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        // Clear out existing tours so ours are the only ones, otherwise we can't predict the sortorder.
+        $DB->delete_records('tool_usertours_tours');
+
+        foreach ($alltours as $tourconfig) {
+            $this->helper_create_tour((object) $tourconfig);
+        }
+
+        // Load our tour to move.
+        $record = $DB->get_record('tool_usertours_tours', ['name' => $movetourname]);
+        $tour = \tool_usertours\tour::load_from_record($record);
+
+        // Call protected method via reflection.
+        $class = new ReflectionClass(\tool_usertours\manager::class);
+        $method = $class->getMethod('_move_tour');
+        $method->setAccessible(true);
+        $method->invokeArgs(null, [$tour, $direction]);
+
+        // Assert expected sortorder.
+        $this->assertEquals($expectedsortorder, $tour->get_sortorder());
+    }
+
+    /**
      * Data Provider for get_matching_tours tests.
      *
      * @return array
@@ -142,6 +219,13 @@ class tool_usertours_manager_testcase extends advanced_testcase {
                     'pathmatch'     => '/my/%',
                     'enabled'       => true,
                     'name'          => 'My tour enabled',
+                    'description'   => '',
+                    'configdata'    => '',
+                ],
+            [
+                    'pathmatch'     => '/my/%',
+                    'enabled'       => true,
+                    'name'          => 'My tour enabled 2',
                     'description'   => '',
                     'configdata'    => '',
                 ],
@@ -200,32 +284,32 @@ class tool_usertours_manager_testcase extends advanced_testcase {
                 'No matches found' => [
                         $alltours,
                         $CFG->wwwroot . '/some/invalid/value',
-                        null,
+                        [],
                     ],
                 'Never return a disabled tour' => [
                         $alltours,
                         $CFG->wwwroot . '/my/index.php',
-                        'My tour enabled',
+                        ['My tour enabled', 'My tour enabled 2'],
                     ],
                 'My not course' => [
                         $alltours,
                         $CFG->wwwroot . '/my/index.php',
-                        'My tour enabled',
+                        ['My tour enabled', 'My tour enabled 2'],
                     ],
                 'My with params' => [
                         $alltours,
                         $CFG->wwwroot . '/my/index.php?id=42',
-                        'My tour enabled',
+                        ['My tour enabled', 'My tour enabled 2'],
                     ],
                 'Course with params' => [
                         $alltours,
                         $CFG->wwwroot . '/course/?id=42',
-                        'course tour enabled',
+                        ['course tour enabled'],
                     ],
                 'Course with params and trailing content' => [
                         $alltours,
                         $CFG->wwwroot . '/course/?id=42&foo=bar',
-                        'course tour with additional params enabled',
+                        ['course tour with additional params enabled', 'course tour enabled'],
                     ],
             ];
     }
@@ -234,11 +318,11 @@ class tool_usertours_manager_testcase extends advanced_testcase {
      * Tests for the get_matching_tours function.
      *
      * @dataProvider get_matching_tours_provider
-     * @param   array   $alltours   The list of tours to insert
-     * @param   string  $url        The URL to test
-     * @param   string  $expected   The name of the expected matching tour
+     * @param   array   $alltours   The list of tours to insert.
+     * @param   string  $url        The URL to test.
+     * @param   array   $expected   List of names of the expected matching tours.
      */
-    public function test_get_matching_tours($alltours, $url, $expected) {
+    public function test_get_matching_tours(array $alltours, string $url, array $expected) {
         $this->resetAfterTest();
 
         foreach ($alltours as $tourconfig) {
@@ -246,12 +330,10 @@ class tool_usertours_manager_testcase extends advanced_testcase {
             $this->helper_create_step((object) ['tourid' => $tour->get_id()]);
         }
 
-        $match = \tool_usertours\manager::get_matching_tours(new moodle_url($url));
-        if ($expected === null) {
-            $this->assertNull($match);
-        } else {
-            $this->assertNotNull($match);
-            $this->assertEquals($expected, $match->get_name());
+        $matches = \tool_usertours\manager::get_matching_tours(new moodle_url($url));
+        $this->assertEquals(count($expected), count($matches));
+        for ($i = 0; $i < count($matches); $i++) {
+            $this->assertEquals($expected[$i], $matches[$i]->get_name());
         }
     }
 }

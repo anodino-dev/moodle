@@ -42,8 +42,21 @@ define('ANY_VERSION', 'any');
  * Collection of components related methods.
  */
 class core_component {
-    /** @var array list of ignored directories - watch out for auth/db exception */
-    protected static $ignoreddirs = array('CVS'=>true, '_vti_cnf'=>true, 'simpletest'=>true, 'db'=>true, 'yui'=>true, 'tests'=>true, 'classes'=>true, 'fonts'=>true);
+    /** @var array list of ignored directories in plugin type roots - watch out for auth/db exception */
+    protected static $ignoreddirs = [
+        'CVS' => true,
+        '_vti_cnf' => true,
+        'amd' => true,
+        'classes' => true,
+        'db' => true,
+        'fonts' => true,
+        'lang' => true,
+        'pix' => true,
+        'simpletest' => true,
+        'templates' => true,
+        'tests' => true,
+        'yui' => true,
+    ];
     /** @var array list plugin types that support subplugins, do not add more here unless absolutely necessary */
     protected static $supportsubplugins = array('mod', 'editor', 'tool', 'local');
 
@@ -73,6 +86,7 @@ class core_component {
     protected static $psr0namespaces = array(
         'Horde' => 'lib/horde/framework/Horde',
         'Mustache' => 'lib/mustache/src/Mustache',
+        'CFPropertyList' => 'lib/plist/classes/CFPropertyList',
     );
     /** @var array associative array of PRS-4 namespaces and corresponding paths. */
     protected static $psr4namespaces = array(
@@ -82,6 +96,7 @@ class core_component {
         'MoodleHQ\\RTLCSS' => 'lib/rtlcss',
         'ScssPhp\\ScssPhp' => 'lib/scssphp',
         'Box\\Spout' => 'lib/spout/src/Spout',
+        'BirknerAlex\\XMPPHP' => 'lib/jabber/XMPP',
         'MatthiasMullie\\Minify' => 'lib/minify/matthiasmullie-minify/src/',
         'MatthiasMullie\\PathConverter' => 'lib/minify/matthiasmullie-pathconverter/src/',
         'IMSGlobal\LTI' => 'lib/ltiprovider/src',
@@ -90,6 +105,9 @@ class core_component {
         'RedeyeVentures\\GeoPattern' => 'lib/geopattern-php/GeoPattern',
         'MongoDB' => 'cache/stores/mongodb/MongoDB',
         'Firebase\\JWT' => 'lib/php-jwt/src',
+        'ZipStream' => 'lib/zipstream/src/',
+        'MyCLabs\\Enum' => 'lib/php-enum/src',
+        'Psr\\Http\\Message' => 'lib/http-message/src',
     );
 
     /**
@@ -716,7 +734,7 @@ $cache = '.var_export($cache, true).';
     /**
      * List all core subsystems and their location
      *
-     * This is a whitelist of components that are part of the core and their
+     * This is a list of components that are part of the core and their
      * language strings are defined in /lang/en/<<subsystem>>.php. If a given
      * plugin is not listed here and it does not have proper plugintype prefix,
      * then it is considered as course activity module.

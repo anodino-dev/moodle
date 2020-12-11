@@ -23,6 +23,7 @@
  */
 
 require_once("../config.php");
+require_once($CFG->dirroot . '/course/lib.php');
 
 $formaction = required_param('formaction', PARAM_LOCALURL);
 $id = required_param('id', PARAM_INT);
@@ -78,12 +79,11 @@ if ($formaction == 'bulkchange.php') {
 
     if (empty($plugin) AND $operationname == 'download_participants') {
         // Check permissions.
-        if (has_capability('moodle/course:manageactivities', $context)) {
+        $pagecontext = ($course->id == SITEID) ? context_system::instance() : $context;
+        if (course_can_view_participants($pagecontext)) {
             $plugins = core_plugin_manager::instance()->get_plugins_of_type('dataformat');
             if (isset($plugins[$dataformat])) {
                 if ($plugins[$dataformat]->is_enabled()) {
-                    require_once($CFG->dirroot . '/lib/dataformatlib.php');
-
                     if (empty($userids)) {
                         redirect($returnurl, get_string('noselectedusers', 'bulkusers'));
                     }
@@ -91,7 +91,6 @@ if ($formaction == 'bulkchange.php') {
                     $columnnames = array(
                         'firstname' => get_string('firstname'),
                         'lastname' => get_string('lastname'),
-                        'email' => get_string('email'),
                     );
 
                     $identityfields = get_extra_user_fields($context);
@@ -106,12 +105,12 @@ if ($formaction == 'bulkchange.php') {
                         list($insql, $inparams) = $DB->get_in_or_equal($userids);
                     }
 
-                    $sql = "SELECT u.firstname, u.lastname, u.email" . $identityfieldsselect . "
+                    $sql = "SELECT u.firstname, u.lastname" . $identityfieldsselect . "
                               FROM {user} u
                              WHERE u.id $insql";
 
                     $rs = $DB->get_recordset_sql($sql, $inparams);
-                    download_as_dataformat('courseid_' . $course->id . '_participants', $dataformat, $columnnames, $rs);
+                    \core\dataformat::download_data('courseid_' . $course->id . '_participants', $dataformat, $columnnames, $rs);
                     $rs->close();
                 }
             }

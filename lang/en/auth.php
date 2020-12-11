@@ -51,7 +51,7 @@ $string['auth_remove_keep'] = 'Keep internal';
 $string['auth_remove_suspend'] = 'Suspend internal';
 $string['auth_remove_user'] = 'Specify what to do with internal user account during mass synchronisation when user was removed from external source. Only suspended users are automatically restored if they reappear in the external source.';
 $string['auth_remove_user_key'] = 'Removed ext user';
-$string['auth_sync_suspended']  = 'When enabled, the suspended attribute will be used to update the local user account\'s suspension status.';
+$string['auth_sync_suspended']  = 'If enabled, the suspended attribute will be used to update the local user account\'s suspension status.';
 $string['auth_sync_suspended_key'] = 'Synchronise local user suspension status';
 $string['auth_sync_script'] = 'User account synchronisation';
 $string['auth_updatelocal'] = 'Update local';
@@ -75,11 +75,11 @@ $string['emailnowexists'] = 'The email address you tried to assign to your profi
 $string['emailupdate'] = 'Email address update';
 $string['emailupdatemessage'] = 'Dear {$a->fullname},
 
-You have requested a change of your email address for your user account at {$a->site}. Please open the following URL in your browser in order to confirm this change.
+You have requested a change of your email address for your account on {$a->site}. To confirm this change, please go to the following web address:
 
-If you have any questions please contact support on: {$a->supportemail}
+{$a->url}
 
-{$a->url}';
+{$a->supportemail}';
 $string['emailupdatesuccess'] = 'Email address of user <em>{$a->fullname}</em> was successfully updated to <em>{$a->email}</em>.';
 $string['emailupdatetitle'] = 'Confirmation of email update at {$a->site}';
 $string['errormaxconsecutiveidentchars'] = 'Passwords must have at most {$a} consecutive identical characters.';

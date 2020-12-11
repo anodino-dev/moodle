@@ -1,6 +1,20 @@
 This files describes API changes in /mod/forum/*,
 information provided here is intended especially for developers.
 
+=== 3.11 ===
+
+* The forum post exporter now includes a "timemodified" field for each post, which is included in several WS methods:
+    * mod_forum_get_discussion_posts
+    * get_discussion_posts_by_userid
+    * get_discussion_post
+    * add_discussion_post
+
+=== 3.10 ===
+
+* Changes in external function mod_forum_external::get_discussion_posts_by_userid
+  Now returns the posts of a given user checking the current user capabilities ($USER, the user who is requesting the posts).
+  Previously, it returned the posts checking the capabilities of the user that created the posts.
+
 === 3.8 ===
 
 * The following functions have been finally deprecated and can not be used anymore:

@@ -248,6 +248,11 @@ class enrol_self_plugin extends enrol_plugin {
             return get_string('canntenrol', 'enrol_self');
         }
 
+        // Check if user has the capability to enrol in this context.
+        if (!has_capability('enrol/self:enrolself', context_course::instance($instance->courseid))) {
+            return get_string('canntenrol', 'enrol_self');
+        }
+
         if ($instance->enrolstartdate != 0 and $instance->enrolstartdate > time()) {
             return get_string('canntenrolearly', 'enrol_self', userdate($instance->enrolstartdate));
         }
@@ -450,8 +455,9 @@ class enrol_self_plugin extends enrol_plugin {
             $userid = $instance->userid;
             unset($instance->userid);
             $this->unenrol_user($instance, $userid);
-            $days = $instance->customint2 / 60*60*24;
-            $trace->output("unenrolling user $userid from course $instance->courseid as they have did not log in for at least $days days", 1);
+            $days = $instance->customint2 / DAYSECS;
+            $trace->output("unenrolling user $userid from course $instance->courseid " .
+                "as they did not log in for at least $days days", 1);
         }
         $rs->close();
 
@@ -467,8 +473,9 @@ class enrol_self_plugin extends enrol_plugin {
             $userid = $instance->userid;
             unset($instance->userid);
             $this->unenrol_user($instance, $userid);
-                $days = $instance->customint2 / 60*60*24;
-            $trace->output("unenrolling user $userid from course $instance->courseid as they have did not access course for at least $days days", 1);
+            $days = $instance->customint2 / DAYSECS;
+            $trace->output("unenrolling user $userid from course $instance->courseid " .
+                "as they did not access the course for at least $days days", 1);
         }
         $rs->close();
 
@@ -714,7 +721,7 @@ class enrol_self_plugin extends enrol_plugin {
      * @return bool
      */
     public function edit_instance_form($instance, MoodleQuickForm $mform, $context) {
-        global $CFG;
+        global $CFG, $DB;
 
         // Merge these two settings to one value for the single selection element.
         if ($instance->notifyall and $instance->expirynotify) {

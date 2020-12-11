@@ -108,6 +108,10 @@ class behat_mod_quiz extends behat_question_base {
                 return new moodle_url('/mod/quiz/report.php',
                     ['id' => $this->get_cm_by_quiz_name($identifier)->id, 'mode' => 'statistics']);
 
+            case 'Manual grading report':
+                return new moodle_url('/mod/quiz/report.php',
+                        ['id' => $this->get_cm_by_quiz_name($identifier)->id, 'mode' => 'grading']);
+
             case 'Attempt review':
                 if (substr_count($identifier, ' > ') !== 2) {
                     throw new coding_exception('For "attempt review", name must be ' .
@@ -393,7 +397,8 @@ class behat_mod_quiz extends behat_question_base {
 
         $this->execute('behat_general::assert_page_contains_text', $this->escape(get_string('edittitleinstructions')));
 
-        $this->execute('behat_forms::i_set_the_field_to', array('maxmark', $this->escape($newmark) . chr(10)));
+        $this->execute('behat_general::i_type', [$newmark]);
+        $this->execute('behat_general::i_press_named_key', ['', 'enter']);
     }
 
     /**
@@ -649,7 +654,9 @@ class behat_mod_quiz extends behat_question_base {
 
         $this->execute('behat_general::assert_page_contains_text', $this->escape(get_string('edittitleinstructions')));
 
-        $this->execute('behat_forms::i_set_the_field_to', array('section', $this->escape($sectionheading) . chr(10)));
+        $this->execute('behat_general::i_press_named_key', ['', 'backspace']);
+        $this->execute('behat_general::i_type', [$sectionheading]);
+        $this->execute('behat_general::i_press_named_key', ['', 'enter']);
     }
 
     /**

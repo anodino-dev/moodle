@@ -432,7 +432,7 @@ class mod_assign_external extends external_api {
                         'id' => $module->assignmentid,
                         'cmid' => $module->id,
                         'course' => $module->course,
-                        'name' => $module->name,
+                        'name' => external_format_string($module->name, $context),
                         'nosubmissions' => $module->nosubmissions,
                         'submissiondrafts' => $module->submissiondrafts,
                         'sendnotifications' => $module->sendnotifications,
@@ -528,7 +528,7 @@ class mod_assign_external extends external_api {
                 'id' => new external_value(PARAM_INT, 'assignment id'),
                 'cmid' => new external_value(PARAM_INT, 'course module id'),
                 'course' => new external_value(PARAM_INT, 'course id'),
-                'name' => new external_value(PARAM_TEXT, 'assignment name'),
+                'name' => new external_value(PARAM_RAW, 'assignment name'),
                 'nosubmissions' => new external_value(PARAM_INT, 'no submissions'),
                 'submissiondrafts' => new external_value(PARAM_INT, 'submissions drafts'),
                 'sendnotifications' => new external_value(PARAM_INT, 'send notifications'),
@@ -593,8 +593,8 @@ class mod_assign_external extends external_api {
         return new external_single_structure(
             array(
                 'id' => new external_value(PARAM_INT, 'course id'),
-                'fullname' => new external_value(PARAM_TEXT, 'course full name'),
-                'shortname' => new external_value(PARAM_TEXT, 'course short name'),
+                'fullname' => new external_value(PARAM_RAW, 'course full name'),
+                'shortname' => new external_value(PARAM_RAW, 'course short name'),
                 'timemodified' => new external_value(PARAM_INT, 'last time modified'),
                 'assignments' => new external_multiple_structure(self::get_assignments_assignment_structure(), 'assignment info')
               ), 'course information object'
@@ -794,7 +794,11 @@ class mod_assign_external extends external_api {
                         'gradingstatus' => $assign->get_grading_status($submissionrecord->userid)
                     );
 
-                    if ($assign->can_view_submission($submissionrecord->userid)) {
+                    if (($assign->get_instance()->teamsubmission
+                        && $assign->can_view_group_submission($submissionrecord->groupid))
+                        || (!$assign->get_instance()->teamsubmission
+                        && $assign->can_view_submission($submissionrecord->userid))
+                    ) {
                         $submissions[] = $submission;
                     }
                 }

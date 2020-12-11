@@ -65,12 +65,17 @@ define('MESSAGE_DEFAULT_TIMEOUT_POLL_IN_SECONDS', 5 * MINSECS);
 /**
  * Returns the count of unread messages for user. Either from a specific user or from all users.
  *
+ * @deprecated since 3.10
+ * TODO: MDL-69643
  * @param object $user1 the first user. Defaults to $USER
  * @param object $user2 the second user. If null this function will count all of user 1's unread messages.
  * @return int the count of $user1's unread messages
  */
 function message_count_unread_messages($user1=null, $user2=null) {
     global $USER, $DB;
+
+    debugging('message_count_unread_messages is deprecated and no longer used',
+        DEBUG_DEVELOPER);
 
     if (empty($user1)) {
         $user1 = $USER;
@@ -724,7 +729,7 @@ function core_message_can_edit_message_profile($user) {
 }
 
 /**
- * Implements callback user_preferences, whitelists preferences that users are allowed to update directly
+ * Implements callback user_preferences, lists preferences that users are allowed to update directly
  *
  * Used in {@see core_user::fill_preferences_cache()}, see also {@see useredit_update_user_preference()}
  *
@@ -782,39 +787,6 @@ function core_message_user_preferences() {
             return $parts ? join(',', $parts) : 'none';
         });
     return $preferences;
-}
-
-/**
- * Renders the popup.
- *
- * @param renderer_base $renderer
- * @return string The HTML
- */
-function core_message_render_navbar_output(\renderer_base $renderer) {
-    global $USER, $CFG;
-
-    // Early bail out conditions.
-    if (!isloggedin() || isguestuser() || user_not_fully_set_up($USER) ||
-        get_user_preferences('auth_forcepasswordchange') ||
-        (!$USER->policyagreed && !is_siteadmin() &&
-            ($manager = new \core_privacy\local\sitepolicy\manager()) && $manager->is_defined())) {
-        return '';
-    }
-
-    $output = '';
-
-    // Add the messages popover.
-    if (!empty($CFG->messaging)) {
-        $unreadcount = \core_message\api::count_unread_conversations($USER);
-        $requestcount = \core_message\api::get_received_contact_requests_count($USER->id);
-        $context = [
-            'userid' => $USER->id,
-            'unreadcount' => $unreadcount + $requestcount
-        ];
-        $output .= $renderer->render_from_template('core_message/message_popover', $context);
-    }
-
-    return $output;
 }
 
 /**

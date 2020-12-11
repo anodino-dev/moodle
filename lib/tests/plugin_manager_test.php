@@ -34,7 +34,7 @@ require_once($CFG->dirroot.'/lib/tests/fixtures/testable_plugininfo_base.php');
  */
 class core_plugin_manager_testcase extends advanced_testcase {
 
-    public function tearDown() {
+    public function tearDown(): void {
         // The caches of the testable singleton must be reset explicitly. It is
         // safer to kill the whole testable singleton at the end of every test.
         testable_core_plugin_manager::reset_caches();
@@ -81,7 +81,7 @@ class core_plugin_manager_testcase extends advanced_testcase {
     public function test_get_plugin_types() {
         // Make sure there are no warnings or errors.
         $types = core_plugin_manager::instance()->get_plugin_types();
-        $this->assertInternalType('array', $types);
+        $this->assertIsArray($types);
         foreach ($types as $type => $fulldir) {
             $this->assertFileExists($fulldir);
         }
@@ -120,7 +120,7 @@ class core_plugin_manager_testcase extends advanced_testcase {
             if (is_array($present)) {
                 foreach ($present as $plugin => $version) {
                     $this->assertRegExp('/^[a-z]+[a-z0-9_]*$/', $plugin, 'All plugins are supposed to have version.php file.');
-                    $this->assertInternalType('object', $version);
+                    $this->assertIsObject($version);
                     $this->assertTrue(is_numeric($version->version), 'All plugins should have a version, plugin '.$type.'_'.$plugin.' does not have version info.');
                 }
             } else {
@@ -189,7 +189,7 @@ class core_plugin_manager_testcase extends advanced_testcase {
     public function test_get_subplugins() {
         // Tested already indirectly from test_get_subplugins_of_plugin().
         $subplugins = core_plugin_manager::instance()->get_subplugins();
-        $this->assertInternalType('array', $subplugins);
+        $this->assertIsArray($subplugins);
     }
 
     public function test_get_parent_of_subplugin() {
@@ -370,11 +370,10 @@ class core_plugin_manager_testcase extends advanced_testcase {
 
     /**
      * The combination of ANY_VERSION + $exactmatch is illegal.
-     *
-     * @expectedException moodle_exception
      */
     public function test_get_remote_plugin_info_exception() {
         $pluginman = testable_core_plugin_manager::instance();
+        $this->expectException(moodle_exception::class);
         $pluginman->get_remote_plugin_info('any_thing', ANY_VERSION, true);
     }
 
@@ -458,6 +457,19 @@ class core_plugin_manager_testcase extends advanced_testcase {
             'testable_plugininfo_base', $pluginman);
         $pluginfo->versiondisk = null;
         $this->assertEmpty($pluginman->resolve_requirements($pluginfo, 2015110900, 30));
+
+        // Test plugin fails for incompatible version.
+        $pluginfo = testable_plugininfo_base::fake_plugin_instance('fake', '/dev/null', 'two', '/dev/null/fake',
+            'testable_plugininfo_base', $pluginman);
+        $pluginfo->versiondisk = 2015060600;
+        $pluginfo->pluginincompatible = 30;
+        $reqs = $pluginman->resolve_requirements($pluginfo, 2015110900, 30);
+        $this->assertEquals($pluginman::REQUIREMENT_STATUS_NEWER, $reqs['core']->status);
+
+        // Test no failure for no incompatible version.
+        $pluginfo->pluginincompatible = 30;
+        $reqs = $pluginman->resolve_requirements($pluginfo, 2015110900, 29);
+        $this->assertEquals($pluginman::REQUIREMENT_STATUS_OK, $reqs['core']->status);
     }
 
     public function test_missing_dependencies() {
@@ -485,5 +497,119 @@ class core_plugin_manager_testcase extends advanced_testcase {
         $misdeps = $pluginman->missing_dependencies();
         $this->assertInstanceOf('\core\update\remote_info', $misdeps['foo_bar']);
         $this->assertEquals(2015100500, $misdeps['foo_bar']->version->version);
+    }
+
+    /**
+     * Tests for check_explicitly_supported function to ensure that versions are correctly reported.
+     *
+     * @dataProvider check_explicitly_supported_provider
+     * @param array|null $supported Supported versions to inject
+     * @param string|int|null $incompatible Incompatible version to inject.
+     * @param int $version Version to test
+     * @param int $expected
+     * @return void
+     */
+    public function test_explicitly_supported($supported, $incompatible, $version, $expected): void {
+        $pluginman = testable_core_plugin_manager::instance();
+
+        // Prepare a fake pluginfo instance.
+        $plugininfo = new testable_plugininfo_base();
+        $plugininfo->type = 'fake';
+        $plugininfo->typerootdir = '/dev/null';
+        $plugininfo->name = 'example';
+        $plugininfo->rootdir = '/dev/null/fake';
+        $plugininfo->pluginman = $pluginman;
+        $plugininfo->versiondisk = 2015060600;
+        $plugininfo->supported = $supported;
+        $plugininfo->incompatible = $incompatible;
+
+        $pluginman->add_fake_plugin_info($plugininfo);
+
+        $plugininfo->load_disk_version();
+
+        $this->assertEquals($expected, $pluginman->check_explicitly_supported($plugininfo, $version));
+    }
+
+    /**
+     * Data provider for check_explicitly_supported with a range of correctly defined version support values.
+     *
+     * @return array
+     */
+    public function check_explicitly_supported_provider(): array {
+        return [
+            'Range, branch in support, lowest' => [
+                'supported' => [29, 31],
+                'incompatible' => null,
+                'version' => 29,
+                'expected' => core_plugin_manager::VERSION_SUPPORTED,
+            ],
+            'Range, branch in support, mid' => [
+                'supported' => [29, 31],
+                'incompatible' => null,
+                'version' => 30,
+                'expected' => core_plugin_manager::VERSION_SUPPORTED,
+            ],
+            'Range, branch in support, highest' => [
+                'supported' => [29, 31],
+                'incompatible' => null,
+                'version' => 31,
+                'expected' => core_plugin_manager::VERSION_SUPPORTED,
+            ],
+
+            'Range, branch not in support, high' => [
+                'supported' => [29, 31],
+                'incompatible' => null,
+                'version' => 32,
+                'expected' => core_plugin_manager::VERSION_NOT_SUPPORTED,
+            ],
+            'Range, branch not in support, low' => [
+                'supported' => [29, 31],
+                'incompatible' => null,
+                'version' => 28,
+                'expected' => core_plugin_manager::VERSION_NOT_SUPPORTED,
+            ],
+            'Range, incompatible, high.' => [
+                'supported' => [29, 31],
+                'incompatible' => 32,
+                'version' => 33,
+                'expected' => core_plugin_manager::VERSION_NOT_SUPPORTED,
+            ],
+            'Range, incompatible, low.' => [
+                'supported' => [29, 31],
+                'incompatible' => 32,
+                'version' => 31,
+                'expected' => core_plugin_manager::VERSION_SUPPORTED,
+            ],
+            'Range, incompatible, equal.' => [
+                'supported' => [29, 31],
+                'incompatible' => 32,
+                'version' => 32,
+                'expected' => core_plugin_manager::VERSION_NOT_SUPPORTED,
+            ],
+            'No supports' => [
+                'supported' => null,
+                'incompatible' => null,
+                'version' => 32,
+                'expected' => core_plugin_manager::VERSION_NO_SUPPORTS,
+            ],
+            'No supports, but incompatible, older' => [
+                'supported' => null,
+                'incompatible' => 30,
+                'version' => 32,
+                'expected' => core_plugin_manager::VERSION_NOT_SUPPORTED,
+            ],
+            'No supports, but incompatible, equal' => [
+                'supported' => null,
+                'incompatible' => 32,
+                'version' => 32,
+                'expected' => core_plugin_manager::VERSION_NOT_SUPPORTED,
+            ],
+            'No supports, but incompatible, newer' => [
+                'supported' => null,
+                'incompatible' => 34,
+                'version' => 32,
+                'expected' => core_plugin_manager::VERSION_NO_SUPPORTS,
+            ],
+        ];
     }
 }

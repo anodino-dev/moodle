@@ -41,11 +41,11 @@ require_once($CFG->dirroot . '/question/type/truefalse/edit_truefalse_form.php')
 class qtype_truefalse_test extends advanced_testcase {
     protected $qtype;
 
-    protected function setUp() {
+    protected function setUp(): void {
         $this->qtype = new qtype_truefalse();
     }
 
-    protected function tearDown() {
+    protected function tearDown(): void {
         $this->qtype = null;
     }
 
@@ -59,6 +59,64 @@ class qtype_truefalse_test extends advanced_testcase {
 
     public function test_get_random_guess_score() {
         $this->assertEquals(0.5, $this->qtype->get_random_guess_score(null));
+    }
+
+    public function test_load_question() {
+        $this->resetAfterTest();
+
+        $syscontext = context_system::instance();
+        /** @var core_question_generator $generator */
+        $generator = $this->getDataGenerator()->get_plugin_generator('core_question');
+        $category = $generator->create_question_category(['contextid' => $syscontext->id]);
+
+        $fromform = test_question_maker::get_question_form_data('truefalse');
+        $fromform->category = $category->id . ',' . $syscontext->id;
+
+        $question = new stdClass();
+        $question->category = $category->id;
+        $question->qtype = 'truefalse';
+        $question->createdby = 0;
+
+        $this->qtype->save_question($question, $fromform);
+        $questiondata = question_bank::load_question_data($question->id);
+
+        $this->assertEquals(['id', 'category', 'parent', 'name', 'questiontext', 'questiontextformat',
+                'generalfeedback', 'generalfeedbackformat', 'defaultmark', 'penalty', 'qtype',
+                'length', 'stamp', 'version', 'hidden', 'timecreated', 'timemodified',
+                'createdby', 'modifiedby', 'idnumber', 'contextid', 'options', 'hints', 'categoryobject'],
+                array_keys(get_object_vars($questiondata)));
+        $this->assertEquals($category->id, $questiondata->category);
+        $this->assertEquals(0, $questiondata->parent);
+        $this->assertEquals($fromform->name, $questiondata->name);
+        $this->assertEquals($fromform->questiontext, $questiondata->questiontext);
+        $this->assertEquals($fromform->questiontextformat, $questiondata->questiontextformat);
+        $this->assertEquals($fromform->generalfeedback['text'], $questiondata->generalfeedback);
+        $this->assertEquals($fromform->generalfeedback['format'], $questiondata->generalfeedbackformat);
+        $this->assertEquals($fromform->defaultmark, $questiondata->defaultmark);
+        $this->assertEquals(1, $questiondata->penalty);
+        $this->assertEquals('truefalse', $questiondata->qtype);
+        $this->assertEquals(1, $questiondata->length);
+        $this->assertEquals(0, $questiondata->hidden);
+        $this->assertEquals($question->createdby, $questiondata->createdby);
+        $this->assertEquals($question->createdby, $questiondata->modifiedby);
+        $this->assertEquals('', $questiondata->idnumber);
+        $this->assertEquals($syscontext->id, $questiondata->contextid);
+
+        // Options.
+        $this->assertEquals($questiondata->id, $questiondata->options->question);
+        $this->assertEquals('True', $questiondata->options->answers[$questiondata->options->trueanswer]->answer);
+        $this->assertEquals('False', $questiondata->options->answers[$questiondata->options->falseanswer]->answer);
+        $this->assertEquals(1.0, $questiondata->options->answers[$questiondata->options->trueanswer]->fraction);
+        $this->assertEquals(0.0, $questiondata->options->answers[$questiondata->options->falseanswer]->fraction);
+        $this->assertEquals('This is the right answer.',
+                $questiondata->options->answers[$questiondata->options->trueanswer]->feedback);
+        $this->assertEquals('This is the wrong answer.',
+                $questiondata->options->answers[$questiondata->options->falseanswer]->feedback);
+        $this->assertEquals(FORMAT_HTML, $questiondata->options->answers[$questiondata->options->trueanswer]->feedbackformat);
+        $this->assertEquals(FORMAT_HTML, $questiondata->options->answers[$questiondata->options->falseanswer]->feedbackformat);
+
+        // Hints.
+        $this->assertEquals([], $questiondata->hints);
     }
 
     public function test_get_possible_responses() {
@@ -103,13 +161,13 @@ class qtype_truefalse_test extends advanced_testcase {
 
         foreach ($questiondata as $property => $value) {
             if (!in_array($property, array('options'))) {
-                $this->assertAttributeEquals($value, $property, $actualquestiondata);
+                $this->assertEquals($value, $actualquestiondata->$property);
             }
         }
 
         foreach ($questiondata->options as $optionname => $value) {
             if (!in_array($optionname, array('trueanswer', 'falseanswer', 'answers'))) {
-                $this->assertAttributeEquals($value, $optionname, $actualquestiondata->options);
+                $this->assertEquals($value, $actualquestiondata->options->$optionname);
             }
         }
 
@@ -119,7 +177,7 @@ class qtype_truefalse_test extends advanced_testcase {
             foreach ($answer as $ansproperty => $ansvalue) {
                 // This question does not use 'answerformat', will ignore it.
                 if (!in_array($ansproperty, array('id', 'question', 'answerformat'))) {
-                    $this->assertAttributeEquals($ansvalue, $ansproperty, $actualanswer);
+                    $this->assertEquals($ansvalue, $actualanswer->$ansproperty);
                 }
             }
             $answerindexes[$answer->answer] = $ansindex;

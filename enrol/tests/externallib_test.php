@@ -351,8 +351,97 @@ class core_enrol_externallib_testcase extends externallib_advanced_testcase {
                 $viewed[] = $createdusers[$enrolleduser['id']];
             }
             // Verify viewed matches canview expectation (using canonicalize to ignore ordering).
-            $this->assertEquals($canview, $viewed, "Problem checking visible users for '{$createdusers[$USER->id]}'", 0, 1, true);
+            $this->assertEqualsCanonicalizing($canview, $viewed, "Problem checking visible users for '{$createdusers[$USER->id]}'");
         }
+    }
+
+    /**
+     * Verify get_enrolled_users() returned users according to their status.
+     */
+    public function test_get_enrolled_users_active_suspended() {
+        global $USER;
+
+        $this->resetAfterTest();
+
+        // Create the course and the users.
+        $course = $this->getDataGenerator()->create_course();
+        $coursecontext = context_course::instance($course->id);
+        $user0 = $this->getDataGenerator()->create_user(['username' => 'user0active']);
+        $user1 = $this->getDataGenerator()->create_user(['username' => 'user1active']);
+        $user2 = $this->getDataGenerator()->create_user(['username' => 'user2active']);
+        $user2su = $this->getDataGenerator()->create_user(['username' => 'user2suspended']); // Suspended user.
+        $user3 = $this->getDataGenerator()->create_user(['username' => 'user3active']);
+        $user3su = $this->getDataGenerator()->create_user(['username' => 'user3suspended']); // Suspended user.
+
+        // Enrol the users in the course.
+        $this->getDataGenerator()->enrol_user($user0->id, $course->id);
+        $this->getDataGenerator()->enrol_user($user1->id, $course->id);
+        $this->getDataGenerator()->enrol_user($user2->id, $course->id);
+        $this->getDataGenerator()->enrol_user($user2su->id, $course->id, null, 'manual', 0, 0, ENROL_USER_SUSPENDED);
+        $this->getDataGenerator()->enrol_user($user3->id, $course->id);
+        $this->getDataGenerator()->enrol_user($user3su->id, $course->id, null, 'manual', 0, 0, ENROL_USER_SUSPENDED);
+
+        // Create a role to add the allowedcaps. Users will have this role assigned.
+        $roleid = $this->getDataGenerator()->create_role();
+        // Allow the specified capabilities.
+        assign_capability('moodle/course:enrolreview', CAP_ALLOW, $roleid, $coursecontext);
+        assign_capability('moodle/user:viewalldetails', CAP_ALLOW, $roleid, $coursecontext);
+
+        // Switch to the user and assign the role.
+        $this->setUser($user0);
+        role_assign($roleid, $USER->id, $coursecontext);
+
+        // Suspended users.
+        $options = [
+            ['name' => 'onlysuspended', 'value' => true],
+            ['name' => 'userfields', 'value' => 'id,username']
+        ];
+        $suspendedusers = core_enrol_external::get_enrolled_users($course->id, $options);
+
+        // We need to execute the return values cleaning process to simulate the web service server.
+        $suspendedusers = external_api::clean_returnvalue(core_enrol_external::get_enrolled_users_returns(), $suspendedusers);
+        $this->assertCount(2, $suspendedusers);
+
+        foreach ($suspendedusers as $suspendeduser) {
+            $this->assertStringContainsString('suspended', $suspendeduser['username']);
+        }
+
+        // Active users.
+        $options = [
+            ['name' => 'onlyactive', 'value' => true],
+            ['name' => 'userfields', 'value' => 'id,username']
+        ];
+        $activeusers = core_enrol_external::get_enrolled_users($course->id, $options);
+
+        // We need to execute the return values cleaning process to simulate the web service server.
+        $activeusers = external_api::clean_returnvalue(core_enrol_external::get_enrolled_users_returns(), $activeusers);
+        $this->assertCount(4, $activeusers);
+
+        foreach ($activeusers as $activeuser) {
+            $this->assertStringContainsString('active', $activeuser['username']);
+        }
+
+        // All enrolled users.
+        $options = [
+            ['name' => 'userfields', 'value' => 'id,username']
+        ];
+        $allusers = core_enrol_external::get_enrolled_users($course->id, $options);
+
+        // We need to execute the return values cleaning process to simulate the web service server.
+        $allusers = external_api::clean_returnvalue(core_enrol_external::get_enrolled_users_returns(), $allusers);
+        $this->assertCount(6, $allusers);
+
+        // Active and suspended. Test exception is thrown.
+        $options = [
+            ['name' => 'onlyactive', 'value' => true],
+            ['name' => 'onlysuspended', 'value' => true],
+            ['name' => 'userfields', 'value' => 'id,username']
+        ];
+        $this->expectException('coding_exception');
+        $message = 'Coding error detected, it must be fixed by a programmer: Both onlyactive ' .
+                        'and onlysuspended are set, this is probably not what you want!';
+        $this->expectExceptionMessage($message);
+        core_enrol_external::get_enrolled_users($course->id, $options);
     }
 
     /**
@@ -519,6 +608,61 @@ class core_enrol_externallib_testcase extends externallib_advanced_testcase {
         $enrolledincourses = external_api::clean_returnvalue(core_enrol_external::get_users_courses_returns(), $enrolledincourses);
 
         $this->assertEquals(0, $enrolledincourses[0]['lastaccess']); // I can't see this, hidden by global setting.
+    }
+
+    /**
+     * Test get_users_courses with mathjax in the name.
+     */
+    public function test_get_users_courses_with_mathjax() {
+        global $DB;
+
+        $this->resetAfterTest(true);
+
+        // Enable MathJax filter in content and headings.
+        $this->configure_filters([
+            ['name' => 'mathjaxloader', 'state' => TEXTFILTER_ON, 'move' => -1, 'applytostrings' => true],
+        ]);
+
+        // Create a course with MathJax in the name and summary.
+        $coursedata = [
+            'fullname'         => 'Course 1 $$(a+b)=2$$',
+            'shortname'         => 'Course 1 $$(a+b)=2$$',
+            'summary'          => 'Lightwork Course 1 description $$(a+b)=2$$',
+            'summaryformat'    => FORMAT_HTML,
+        ];
+
+        $course = self::getDataGenerator()->create_course($coursedata);
+        $context = context_course::instance($course->id);
+
+        // Enrol a student in the course.
+        $student = $this->getDataGenerator()->create_user();
+        $studentroleid = $DB->get_field('role', 'id', ['shortname' => 'student']);
+        $this->getDataGenerator()->enrol_user($student->id, $course->id, $studentroleid);
+
+        $this->setUser($student);
+
+        // Call the external function.
+        $enrolledincourses = core_enrol_external::get_users_courses($student->id, true);
+
+        // We need to execute the return values cleaning process to simulate the web service server.
+        $enrolledincourses = external_api::clean_returnvalue(core_enrol_external::get_users_courses_returns(), $enrolledincourses);
+
+        // Check that the amount of courses is the right one.
+        $this->assertCount(1, $enrolledincourses);
+
+        // Filter the values to compare them with the returned ones.
+        $course->fullname = external_format_string($course->fullname, $context->id);
+        $course->shortname = external_format_string($course->shortname, $context->id);
+        list($course->summary, $course->summaryformat) =
+             external_format_text($course->summary, $course->summaryformat, $context->id, 'course', 'summary', 0);
+
+        // Compare the values.
+        $this->assertStringContainsString('<span class="filter_mathjaxloader_equation">', $enrolledincourses[0]['fullname']);
+        $this->assertStringContainsString('<span class="filter_mathjaxloader_equation">', $enrolledincourses[0]['shortname']);
+        $this->assertStringContainsString('<span class="filter_mathjaxloader_equation">', $enrolledincourses[0]['summary']);
+        $this->assertEquals($course->fullname, $enrolledincourses[0]['fullname']);
+        $this->assertEquals($course->shortname, $enrolledincourses[0]['shortname']);
+        $this->assertEquals($course->summary, $enrolledincourses[0]['summary']);
     }
 
     /**
@@ -712,8 +856,6 @@ class core_enrol_externallib_testcase extends externallib_advanced_testcase {
     /**
      * Test get_enrolled_users from core_enrol_external with capability to
      * viewparticipants removed.
-     *
-     * @expectedException moodle_exception
      */
     public function test_get_enrolled_users_without_capability() {
         $capability = 'moodle/course:viewparticipants';
@@ -721,6 +863,7 @@ class core_enrol_externallib_testcase extends externallib_advanced_testcase {
 
         // Call without required capability.
         $this->unassignUserCapability($capability, $data->context->id, $data->roleid);
+        $this->expectException(moodle_exception::class);
         $categories = core_enrol_external::get_enrolled_users($data->course->id);
     }
 
@@ -1096,10 +1239,9 @@ class core_enrol_externallib_testcase extends externallib_advanced_testcase {
                 core_enrol_external::submit_user_enrolment_form($querystring)
         );
 
-        $this->assertEquals(
+        $this->assertEqualsCanonicalizing(
                 ['result' => $expectedresult, 'validationerror' => $validationerror],
-                $result,
-                '', 0.0, 10, true);
+                $result);
 
         if ($result['result']) {
             $ue = $DB->get_record('user_enrolments', ['id' => $ueid], '*', MUST_EXIST);

@@ -876,6 +876,44 @@ class core_completionlib_testcase extends advanced_testcase {
     }
 
     /**
+     * Test that data is cleaned up when we delete courses that are set as completion criteria for other courses
+     *
+     * @return void
+     */
+    public function test_course_delete_prerequisite() {
+        global $DB;
+
+        $this->setup_data();
+
+        $courseprerequisite = $this->getDataGenerator()->create_course(['enablecompletion' => true]);
+
+        $criteriadata = (object) [
+            'id' => $this->course->id,
+            'criteria_course' => [$courseprerequisite->id],
+        ];
+
+        /** @var completion_criteria_course $criteria */
+        $criteria = completion_criteria::factory(['criteriatype' => COMPLETION_CRITERIA_TYPE_COURSE]);
+        $criteria->update_config($criteriadata);
+
+        // Sanity test.
+        $this->assertTrue($DB->record_exists('course_completion_criteria', [
+            'course' => $this->course->id,
+            'criteriatype' => COMPLETION_CRITERIA_TYPE_COURSE,
+            'courseinstance' => $courseprerequisite->id,
+        ]));
+
+        // Deleting the prerequisite course should remove the completion criteria.
+        delete_course($courseprerequisite, false);
+
+        $this->assertFalse($DB->record_exists('course_completion_criteria', [
+            'course' => $this->course->id,
+            'criteriatype' => COMPLETION_CRITERIA_TYPE_COURSE,
+            'courseinstance' => $courseprerequisite->id,
+        ]));
+    }
+
+    /**
      * Test course module completion update event.
      */
     public function test_course_module_completion_updated_event() {
@@ -938,6 +976,32 @@ class core_completionlib_testcase extends advanced_testcase {
         $this->assertInstanceOf('moodle_url', $event->get_url());
         $data = $ccompletion->get_record_data();
         $this->assertEventLegacyData($data, $event);
+    }
+
+    /**
+     * Test course completed message.
+     */
+    public function test_course_completed_message() {
+        $this->setup_data();
+        $this->setAdminUser();
+
+        $completionauto = array('completion' => COMPLETION_TRACKING_AUTOMATIC);
+        $ccompletion = new completion_completion(array('course' => $this->course->id, 'userid' => $this->user->id));
+
+        // Mark course as complete and get the message.
+        $sink = $this->redirectMessages();
+        $ccompletion->mark_complete();
+        $messages = $sink->get_messages();
+        $sink->close();
+
+        $this->assertCount(1, $messages);
+        $message = array_pop($messages);
+
+        $this->assertEquals(core_user::get_noreply_user()->id, $message->useridfrom);
+        $this->assertEquals($this->user->id, $message->useridto);
+        $this->assertEquals('coursecompleted', $message->eventtype);
+        $this->assertEquals(get_string('coursecompleted', 'completion'), $message->subject);
+        $this->assertStringContainsString($this->course->fullname, $message->fullmessage);
     }
 
     /**

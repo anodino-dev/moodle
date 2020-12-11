@@ -21,6 +21,7 @@
  */
 
 import $ from 'jquery';
+import * as Aria from 'core/aria';
 import Popper from 'core/popper';
 
 /**
@@ -594,7 +595,7 @@ export default class Tour {
             });
         }
 
-        this.listeners.forEach(function (listener) {
+        this.listeners.forEach(function(listener) {
             listener.node.on.apply(listener.node, listener.args);
         });
 
@@ -646,14 +647,15 @@ export default class Tour {
 
         // Is this the first step?
         if (this.isFirstStep(stepConfig.stepNumber)) {
-            template.find('[data-role="previous"]').prop('disabled', true);
+            template.find('[data-role="previous"]').hide();
         } else {
             template.find('[data-role="previous"]').prop('disabled', false);
         }
 
         // Is this the final step?
         if (this.isLastStep(stepConfig.stepNumber)) {
-            template.find('[data-role="next"]').prop('disabled', true);
+            template.find('[data-role="next"]').hide();
+            template.find('[data-role="end"]').removeClass("btn-secondary").addClass("btn-primary");
         } else {
             template.find('[data-role="next"]').prop('disabled', false);
         }
@@ -1497,7 +1499,7 @@ export default class Tour {
             let hidden = child.attr(attrName);
             if (!hidden) {
                 child.attr(stateHolder, true);
-                child.attr(attrName, true);
+                Aria.hide(child);
             }
         };
 
@@ -1518,12 +1520,11 @@ export default class Tour {
      */
     accessibilityHide() {
         let stateHolder = 'data-has-hidden';
-        let attrName = 'aria-hidden';
         let showFunction = function(child) {
             let hidden = child.attr(stateHolder);
             if (typeof hidden !== 'undefined') {
                 child.removeAttr(stateHolder);
-                child.removeAttr(attrName);
+                Aria.unhide(child);
             }
         };
 

@@ -24,6 +24,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+use core_h5p\local\library\autoloader;
+
 /**
  * Set params for this button.
  *
@@ -36,14 +38,23 @@ function atto_h5p_params_for_js($elementid, $options, $fpoptions) {
     if (!$context) {
         $context = context_system::instance();
     }
+
     $addembed = has_capability('atto/h5p:addembed', $context);
+    $upload = has_capability('moodle/h5p:deploy', $context);
 
     $allowedmethods = 'none';
-    if ($addembed) {
+    if ($addembed && $upload) {
+        $allowedmethods = 'both';
+    } else if ($addembed) {
         $allowedmethods = 'embed';
+    } else if ($upload) {
+        $allowedmethods = 'upload';
     }
 
-    $params = ['allowedmethods' => $allowedmethods];
+    $params = [
+        'allowedmethods' => $allowedmethods,
+        'storeinrepo' => true
+    ];
     return $params;
 }
 
@@ -54,14 +65,22 @@ function atto_h5p_strings_for_js() {
     global $PAGE;
 
     $strings = array(
-        'saveh5p',
-        'h5pproperties',
-        'enterurl',
-        'invalidh5purl'
+        'browserepositories',
+        'copyrightbutton',
+        'downloadbutton',
+        'instructions',
+        'embedbutton',
+        'h5pfile',
+        'h5poptions',
+        'h5purl',
+        'h5pfileorurl',
+        'invalidh5purl',
+        'noh5pcontent',
+        'pluginname'
     );
 
     $PAGE->requires->strings_for_js($strings, 'atto_h5p');
-    $PAGE->requires->js(new moodle_url('/lib/h5p/js/h5p-resizer.js'));
+    $PAGE->requires->js(autoloader::get_h5p_core_library_url('js/h5p-resizer.js'));
 }
 
 

@@ -27,6 +27,7 @@ namespace mod_forum\local\exporters;
 defined('MOODLE_INTERNAL') || die();
 
 use mod_forum\local\entities\post as post_entity;
+use mod_forum\local\entities\discussion as discussion_entity;
 use mod_forum\local\exporters\author as author_exporter;
 use mod_forum\local\factories\exporter as exporter_factory;
 use core\external\exporter;
@@ -105,6 +106,7 @@ class post extends exporter {
                 'null' => NULL_ALLOWED
             ],
             'timecreated' => ['type' => PARAM_INT],
+            'timemodified' => ['type' => PARAM_INT],
             'unread' => [
                 'type' => PARAM_BOOL,
                 'optional' => true,
@@ -402,7 +404,7 @@ class post extends exporter {
 
         if ($loadcontent) {
             $subject = $post->get_subject();
-            $timecreated = $post->get_time_created();
+            $timecreated = $this->get_start_time($discussion, $post);
             $message = $this->get_message($post);
         } else {
             $subject = $isdeleted ? get_string('forumsubjectdeleted', 'forum') : get_string('forumsubjecthidden', 'forum');
@@ -436,6 +438,7 @@ class post extends exporter {
             'hasparent' => $post->has_parent(),
             'parentid' => $post->has_parent() ? $post->get_parent_id() : null,
             'timecreated' => $timecreated,
+            'timemodified' => $post->get_time_modified(),
             'unread' => ($loadcontent && $readreceiptcollection) ? !$readreceiptcollection->has_user_read_post($user, $post) : null,
             'isdeleted' => $isdeleted,
             'isprivatereply' => $isprivatereply,
@@ -638,9 +641,26 @@ class post extends exporter {
     private function get_author_subheading_html(stdClass $exportedauthor, int $timecreated) : string {
         $fullname = $exportedauthor->fullname;
         $profileurl = $exportedauthor->urls['profile'] ?? null;
-        $formatteddate = userdate($timecreated, get_string('strftimedaydatetime', 'core_langconfig'));
         $name = $profileurl ? "<a href=\"{$profileurl}\">{$fullname}</a>" : $fullname;
-        $date = "<time>{$formatteddate}</time>";
+        $date = userdate_htmltime($timecreated, get_string('strftimedaydatetime', 'core_langconfig'));
         return get_string('bynameondate', 'mod_forum', ['name' => $name, 'date' => $date]);
+    }
+
+    /**
+     * Get the start time for a post.
+     *
+     * @param discussion_entity $discussion entity
+     * @param post_entity $post entity
+     * @return int The start time (timestamp) for a post
+     */
+    private function get_start_time(discussion_entity $discussion, post_entity $post) {
+        global $CFG;
+
+        $posttime = $post->get_time_created();
+        $discussiontime = $discussion->get_time_start();
+        if (!empty($CFG->forum_enabletimedposts) && ($discussiontime > $posttime)) {
+            return $discussiontime;
+        }
+        return $posttime;
     }
 }

@@ -90,6 +90,8 @@
 
     <h2 class="mb-2">{{insightname}}</h2>
 
+    {{{insightdescription}}}
+
     {{> report_insights/bulk_actions }}
 
     <table class="generaltable insights-list mt-3">
@@ -106,9 +108,9 @@
         {{/showpredictionheading}}
         <thead>
             <tr class="d-flex">
-                <th scope="col" class="col-xs-1{{^bulkactions}} hidden{{/bulkactions}}">{{{hiddencheckboxtoggleall}}}</th>
-                <th scope="col" class="col-xs-8">{{#str}}description{{/str}}</th>
-                <th scope="col" class="col-xs-3{{^actions}} hidden{{/actions}}">{{#str}}actions{{/str}}</th>
+                <th scope="col" class="col-1{{^bulkactions}} hidden{{/bulkactions}}">{{{hiddencheckboxtoggleall}}}</th>
+                <th scope="col" class="col-8">{{#str}}description{{/str}}</th>
+                <th scope="col" class="col-3{{^actions}} hidden{{/actions}}">{{#str}}actions{{/str}}</th>
             </tr>
         </thead>
         <tbody>
@@ -137,7 +139,7 @@
         {{#calculations}}
             <tr>
                 <th scope="row" class="{{#style}}table-{{style}}{{/style}}">{{name}}</td>
-                <td class="{{#style}}table-{{style}}{{/style}}">{{#outcomeicon}}{{> core/pix_icon}}{{/outcomeicon}} {{displayvalue}}</td>
+                <td class="{{#style}}table-{{style}}{{/style}}">{{#outcomeicon}}{{> core/pix_icon}}{{/outcomeicon}} {{displayvalue}} {{#outcomehelp}}{{> core/help_icon}}{{/outcomehelp}}</td>
             </tr>
         {{/calculations}}
         </tbody>

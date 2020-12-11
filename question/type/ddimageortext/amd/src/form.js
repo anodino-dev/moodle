@@ -48,17 +48,12 @@ define(['jquery', 'core/dragdrop'], function($, dragDrop) {
 
         /**
          * Initialise the form javascript features.
-         *
-         * @param {Object} maxBgImageSize object with two properties: width and height.
-         * @param {Object} maxDragImageSize object with two properties: width and height.
          */
-        init: function(maxBgImageSize, maxDragImageSize) {
-            dragDropToImageForm.maxBgImageSize = maxBgImageSize;
-            dragDropToImageForm.maxDragImageSize = maxDragImageSize;
+        init: function() {
             dragDropToImageForm.fp = dragDropToImageForm.filePickers();
 
             $('#id_previewareaheader').append(
-                '<div class="ddarea">' +
+                '<div class="ddarea que ddimageortext">' +
                 '  <div class="droparea">' +
                 '    <img class="dropbackground" />' +
                 '    <div class="dropzones"></div>' +
@@ -87,7 +82,7 @@ define(['jquery', 'core/dragdrop'], function($, dragDrop) {
             // From now on, when a new file gets loaded into the filepicker, update the preview.
             // This is not in the setupEventHandlers section as it needs to be delayed until
             // after filepicker's javascript has finished.
-            $('form.mform').on('change', '.filepickerhidden', function() {
+            $('form.mform[data-qtype="ddimageortext"]').on('change', '.filepickerhidden', function() {
                 M.util.js_pending('dragDropToImageForm');
                 dragDropToImageForm.loadPreviewImage();
             });
@@ -108,25 +103,8 @@ define(['jquery', 'core/dragdrop'], function($, dragDrop) {
          * After the background image is loaded, continue setting up the preview.
          */
         afterPreviewImageLoaded: function() {
-            var bgImg = $('fieldset#id_previewareaheader .dropbackground');
-            dragDropToImageForm.constrainImageSize(bgImg, dragDropToImageForm.maxBgImageSize);
             dragDropToImageForm.createDropZones();
             M.util.js_complete('dragDropToImageForm');
-        },
-
-        /**
-         * Limits an image display size to the given maximums.
-         *
-         * @param {jQuery} img the image.
-         * @param {Object} maxSize with width and height properties.
-         */
-        constrainImageSize: function(img, maxSize) {
-            var reduceby = Math.max(img.width() / maxSize.width,
-                img.height() / maxSize.height);
-            if (reduceby > 1) {
-                img.css('width', Math.floor(img.width() / reduceby));
-            }
-            img.addClass('constrained');
         },
 
         /**
@@ -233,7 +211,7 @@ define(['jquery', 'core/dragdrop'], function($, dragDrop) {
 
             // Resize them to the same size.
             $('.dropzones .droppreview').css('padding', '0');
-            var numGroups = $('select.draggroup').first().find('option').length;
+            var numGroups = $('.draggroup select').first().find('option').length;
             for (var group = 1; group <= numGroups; group++) {
                 dragDropToImageForm.resizeAllDragsAndDropsInGroup(group);
             }
@@ -420,9 +398,8 @@ define(['jquery', 'core/dragdrop'], function($, dragDrop) {
                 top = Math.round(dropPosition.top - backgroundPosition.top);
 
             // Constrain coordinates to be inside the background.
-            // The -10 here matches the +10 in resizeAllDragsAndDropsInGroup().
-            left = Math.max(0, Math.min(left, backgroundImage.width() - drop.width() - 10));
-            top = Math.max(0, Math.min(top, backgroundImage.height() - drop.height() - 10));
+            left = Math.round(Math.max(0, Math.min(left, backgroundImage.outerWidth() - drop.outerWidth())));
+            top = Math.round(Math.max(0, Math.min(top, backgroundImage.outerHeight() - drop.outerHeight())));
 
             // Update the form.
             dragDropToImageForm.form.setFormValue('drops', [dropNo, 'xleft'], left);
@@ -450,7 +427,7 @@ define(['jquery', 'core/dragdrop'], function($, dragDrop) {
             },
 
             getEl: function(name, indexes) {
-                var form = $('form.mform')[0];
+                var form = $('form.mform[data-qtype="ddimageortext"]')[0];
                 return form.elements[this.toNameWithIndex(name, indexes)];
             },
 
@@ -501,7 +478,7 @@ define(['jquery', 'core/dragdrop'], function($, dragDrop) {
             if (draftItemIdsToName === undefined) {
                 draftItemIdsToName = {};
                 nameToParentNode = {};
-                var fp = $('form.mform input.filepickerhidden');
+                var fp = $('form.mform[data-qtype="ddimageortext"] input.filepickerhidden');
                 fp.each(function(index, filepicker) {
                     draftItemIdsToName[filepicker.value] = filepicker.name;
                     nameToParentNode[filepicker.name] = filepicker.parentNode;
@@ -532,9 +509,6 @@ define(['jquery', 'core/dragdrop'], function($, dragDrop) {
     return {
         /**
          * Initialise the form JavaScript features.
-         *
-         * @param {Object} maxBgImageSize object with two properties: width and height.
-         * @param {Object} maxDragImageSize object with two properties: width and height.
          */
         init: dragDropToImageForm.init
     };

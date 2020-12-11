@@ -26,6 +26,7 @@ namespace mod_forum\local\factories;
 
 defined('MOODLE_INTERNAL') || die();
 
+use mod_forum\grades\forum_gradeitem;
 use mod_forum\local\entities\discussion as discussion_entity;
 use mod_forum\local\entities\forum as forum_entity;
 use mod_forum\local\factories\vault as vault_factory;
@@ -182,8 +183,8 @@ class renderer {
             case FORUM_MODE_NESTED:
                 $template = 'mod_forum/forum_discussion_nested_posts';
                 break;
-            case FORUM_MODE_MODERN:
-                $template = 'mod_forum/forum_discussion_modern_posts';
+            case FORUM_MODE_NESTED_V2:
+                $template = 'mod_forum/forum_discussion_nested_v2_posts';
                 break;
             default;
                 $template = 'mod_forum/forum_discussion_posts';
@@ -227,8 +228,9 @@ class renderer {
                             $seenfirstunread = true;
                         }
 
-                        if ($displaymode === FORUM_MODE_MODERN) {
-                            $exportedpost->showactionmenu = $exportedpost->capabilities['controlreadstatus'] ||
+                        if ($displaymode === FORUM_MODE_NESTED_V2) {
+                            $exportedpost->showactionmenu = $exportedpost->capabilities['view'] ||
+                                                            $exportedpost->capabilities['controlreadstatus'] ||
                                                             $exportedpost->capabilities['edit'] ||
                                                             $exportedpost->capabilities['split'] ||
                                                             $exportedpost->capabilities['delete'] ||
@@ -244,7 +246,7 @@ class renderer {
                 if (
                     $displaymode === FORUM_MODE_NESTED ||
                     $displaymode === FORUM_MODE_THREADED ||
-                    $displaymode === FORUM_MODE_MODERN
+                    $displaymode === FORUM_MODE_NESTED_V2
                 ) {
                     $sortedposts = $exportedpostssorter->sort_into_children($exportedposts);
                     $sortintoreplies = function($nestedposts) use (&$sortintoreplies) {
@@ -316,7 +318,7 @@ class renderer {
         return new posts_renderer(
             $this->rendererbase,
             $this->builderfactory->get_exported_posts_builder(),
-            'mod_forum/forum_posts_with_context_links',
+            'mod_forum/forum_search_results',
             // Post process the exported posts to add the highlighting of the search terms to the post
             // and also the additional context links in the subject.
             function($exportedposts, $forumsbyid, $discussionsbyid) use ($searchterms, $urlfactory) {
@@ -455,6 +457,7 @@ class renderer {
             $this->builderfactory,
             $capabilitymanager,
             $this->urlfactory,
+            forum_gradeitem::load_from_forum_entity($forum),
             $template,
             $notifications,
             function($discussions, $user, $forum) {
@@ -494,6 +497,7 @@ class renderer {
             $this->builderfactory,
             $capabilitymanager,
             $this->urlfactory,
+            forum_gradeitem::load_from_forum_entity($forum),
             $template,
             $notifications,
             function($discussions, $user, $forum) use ($capabilitymanager) {

@@ -25,9 +25,29 @@ define('NO_OUTPUT_BUFFERING', true);
 
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->libdir . '/adminlib.php');
-require_once($CFG->libdir . '/dataformatlib.php');
+require_once($CFG->dirroot . '/calendar/externallib.php');
 
 $forumid = required_param('id', PARAM_INT);
+$userids = optional_param_array('userids', [], PARAM_INT);
+$discussionids = optional_param_array('discids', [], PARAM_INT);
+$from = optional_param_array('from', [], PARAM_INT);
+$to = optional_param_array('to', [], PARAM_INT);
+$fromtimestamp = optional_param('timestampfrom', '', PARAM_INT);
+$totimestamp = optional_param('timestampto', '', PARAM_INT);
+
+if (!empty($from['enabled'])) {
+    unset($from['enabled']);
+    $from = core_calendar_external::get_timestamps([$from])['timestamps'][0]['timestamp'];
+} else {
+    $from = $fromtimestamp;
+}
+
+if (!empty($to['enabled'])) {
+    unset($to['enabled']);
+    $to = core_calendar_external::get_timestamps([$to])['timestamps'][0]['timestamp'];
+} else {
+    $to = $totimestamp;
+}
 
 $vaultfactory = mod_forum\local\container::get_vault_factory();
 $managerfactory = mod_forum\local\container::get_manager_factory();
@@ -64,12 +84,15 @@ if ($form->is_cancelled()) {
 } else if ($data = $form->get_data()) {
     $dataformat = $data->format;
 
+    // This may take a very long time and extra memory.
+    \core_php_time_limit::raise();
+    raise_memory_limit(MEMORY_HUGE);
+
     $discussionvault = $vaultfactory->get_discussion_vault();
     $postvault = $vaultfactory->get_post_vault();
-    $discussionids = [];
     if ($data->discussionids) {
         $discussionids = $data->discussionids;
-    } else {
+    } else if (empty($discussionids)) {
         $discussions = $discussionvault->get_all_discussions_in_forum($forum);
         $discussionids = array_map(function ($discussion) {
             return $discussion->get_id();
@@ -77,8 +100,8 @@ if ($form->is_cancelled()) {
     }
 
     $filters = ['discussionids' => $discussionids];
-    if ($data->userids) {
-        $filters['userids'] = $data->userids;
+    if ($data->useridsselected) {
+        $filters['userids'] = $data->useridsselected;
     }
     if ($data->from) {
         $filters['from'] = $data->from;
@@ -93,40 +116,57 @@ if ($form->is_cancelled()) {
     $striphtml = !empty($data->striphtml);
     $humandates = !empty($data->humandates);
 
-    $fields = ['id', 'discussion', 'parent', 'userid', 'created', 'modified', 'mailed', 'subject', 'message',
-                'messageformat', 'messagetrust', 'attachment', 'totalscore', 'mailnow', 'deleted', 'privatereplyto'];
+    $fields = ['id', 'discussion', 'parent', 'userid', 'userfullname', 'created', 'modified', 'mailed', 'subject', 'message',
+                'messageformat', 'messagetrust', 'attachment', 'totalscore', 'mailnow', 'deleted', 'privatereplyto',
+                'privatereplytofullname', 'wordcount', 'charcount'];
+
+    $canviewfullname = has_capability('moodle/site:viewfullnames', $context);
 
     $datamapper = $legacydatamapperfactory->get_post_data_mapper();
     $exportdata = new ArrayObject($datamapper->to_legacy_objects($posts));
     $iterator = $exportdata->getIterator();
 
-    require_once($CFG->libdir . '/dataformatlib.php');
     $filename = clean_filename('discussion');
-    download_as_dataformat(
+    \core\dataformat::download_data(
         $filename,
         $dataformat,
         $fields,
         $iterator,
-        function($exportdata) use ($fields, $striphtml, $humandates) {
-            $data = $exportdata;
+        function($exportdata) use ($fields, $striphtml, $humandates, $canviewfullname, $context) {
+            $data = new stdClass();
+
+            foreach ($fields as $field) {
+                // Set data field's value from the export data's equivalent field by default.
+                $data->$field = $exportdata->$field ?? null;
+
+                if ($field == 'userfullname') {
+                    $user = \core_user::get_user($data->userid);
+                    $data->userfullname = fullname($user, $canviewfullname);
+                }
+
+                if ($field == 'privatereplytofullname' && !empty($data->privatereplyto)) {
+                    $user = \core_user::get_user($data->privatereplyto);
+                    $data->privatereplytofullname = fullname($user, $canviewfullname);
+                }
+
+                if ($field == 'message') {
+                    $data->message = file_rewrite_pluginfile_urls($data->message, 'pluginfile.php', $context->id, 'mod_forum',
+                        'post', $data->id);
+                }
+
+                // Convert any boolean fields to their integer equivalent for output.
+                if (is_bool($data->$field)) {
+                    $data->$field = (int) $data->$field;
+                }
+            }
+
             if ($striphtml) {
-                // The following call to html_to_text uses the option that strips out
-                // all URLs, but format_text complains if it finds @@PLUGINFILE@@ tokens.
-                // So, we need to replace @@PLUGINFILE@@ with a real URL, but it doesn't
-                // matter what. We use http://example.com/.
-                $data->message = str_replace('@@PLUGINFILE@@/', 'http://example.com/', $data->message);
                 $data->message = html_to_text(format_text($data->message, $data->messageformat), 0, false);
                 $data->messageformat = FORMAT_PLAIN;
             }
             if ($humandates) {
                 $data->created = userdate($data->created);
                 $data->modified = userdate($data->modified);
-            }
-            foreach ($fields as $field) {
-                // Convert any boolean fields to their integer equivalent for output.
-                if (is_bool($data->$field)) {
-                    $data->$field = (int) $data->$field;
-                }
             }
             return $data;
         });
@@ -141,6 +181,9 @@ $PAGE->set_heading($pagetitle);
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading($pagetitle);
+
+// It is possible that the following fields have been provided in the URL.
+$form->set_data(['useridsselected' => $userids, 'discussionids' => $discussionids, 'from' => $from, 'to' => $to]);
 
 $form->display();
 

@@ -41,7 +41,7 @@ class mod_forum_maildigest_testcase extends advanced_testcase {
      * Set up message and mail sinks, and set up other requirements for the
      * cron to be tested here.
      */
-    public function setUp() {
+    public function setUp(): void {
         global $CFG;
 
         // Messaging is not compatible with transactions...
@@ -78,7 +78,7 @@ class mod_forum_maildigest_testcase extends advanced_testcase {
     /**
      * Clear the message sinks set up in this test.
      */
-    public function tearDown() {
+    public function tearDown(): void {
         $this->messagesink->clear();
         $this->messagesink->close();
 
@@ -361,6 +361,101 @@ class mod_forum_maildigest_testcase extends advanced_testcase {
     }
 
     /**
+     * Send digests to a user who cannot view fullnames
+     */
+    public function test_cron_digest_view_fullnames_off() {
+        global $DB, $CFG;
+
+        $CFG->fullnamedisplay = 'lastname';
+        $this->resetAfterTest(true);
+
+        // Set up a basic user enrolled in a course.
+        $userhelper = $this->helper_setup_user_in_course();
+        $user = $userhelper->user;
+        $course1 = $userhelper->courses->course1;
+        $forum1 = $userhelper->forums->forum1;
+        $posts = [];
+
+        // Add 1 discussions to forum 1.
+        list($discussion, $post) = $this->helper_post_to_forum($forum1, $user, ['mailnow' => 1]);
+        $posts[] = $post;
+
+        // Set the tested user's default maildigest setting.
+        $DB->set_field('user', 'maildigest', 1, array('id' => $user->id));
+
+        // No digests mails should be sent, but 1 forum mails will be sent.
+        $expect = [
+            (object) [
+                'userid' => $user->id,
+                'messages' => 0,
+                'digests' => 1,
+            ],
+        ];
+        $this->queue_tasks_and_assert($expect);
+        $this->send_digests_and_assert($user, $posts);
+
+        // The user does not, by default, have permission to view the fullname.
+        $messagecontent = $this->messagesink->get_messages()[0]->fullmessage;
+
+        // Assert that the expected name is present (lastname only).
+        $this->assertStringContainsString(fullname($user, false), $messagecontent);
+
+        // Assert that the full name is not present (firstname lastname only).
+        $this->assertStringNotContainsString(fullname($user, true), $messagecontent);
+    }
+
+    /**
+     * Send digests to a user who can view fullnames.
+     */
+    public function test_cron_digest_view_fullnames_on() {
+        global $DB, $CFG;
+
+        $CFG->fullnamedisplay = 'lastname';
+        $this->resetAfterTest(true);
+
+        // Set up a basic user enrolled in a course.
+        $userhelper = $this->helper_setup_user_in_course();
+        $user = $userhelper->user;
+        $course1 = $userhelper->courses->course1;
+        $forum1 = $userhelper->forums->forum1;
+        $posts = [];
+        assign_capability(
+            'moodle/site:viewfullnames',
+            CAP_ALLOW,
+            $DB->get_field('role', 'id', ['shortname' => 'student']),
+            \context_course::instance($course1->id)
+        );
+
+        // Add 1 discussions to forum 1.
+        list($discussion, $post) = $this->helper_post_to_forum($forum1, $user, ['mailnow' => 1]);
+        $posts[] = $post;
+
+        // Set the tested user's default maildigest setting.
+        $DB->set_field('user', 'maildigest', 1, array('id' => $user->id));
+
+        // No digests mails should be sent, but 1 forum mails will be sent.
+        $expect = [
+            (object) [
+                'userid' => $user->id,
+                'messages' => 0,
+                'digests' => 1,
+            ],
+        ];
+        $this->queue_tasks_and_assert($expect);
+        $this->send_digests_and_assert($user, $posts);
+
+        // The user does not, by default, have permission to view the fullname.
+        // However we have given the user that capability so we expect to see both firstname and lastname.
+        $messagecontent = $this->messagesink->get_messages()[0]->fullmessage;
+
+        // Assert that the expected name is present (lastname only).
+        $this->assertStringContainsString(fullname($user, false), $messagecontent);
+
+        // Assert that the full name is also present (firstname lastname only).
+        $this->assertStringContainsString(fullname($user, true), $messagecontent);
+    }
+
+    /**
      * Sends several notifications to one user as:
      * * daily digests coming from the per-forum setting; and
      * * single e-mails from the profile setting.
@@ -598,5 +693,119 @@ class mod_forum_maildigest_testcase extends advanced_testcase {
         $task = reset($tasks);
         $digesttime = usergetmidnight(time(), \core_date::get_server_timezone()) + ($CFG->digestmailtime * 3600);
         $this->assertLessThanOrEqual($digesttime, $task->nextruntime);
+    }
+
+    /**
+     * The sending of a digest marks posts as read if automatic message read marking is set.
+     */
+    public function test_cron_digest_marks_posts_read() {
+        global $DB, $CFG;
+
+        $this->resetAfterTest(true);
+
+        // Disable the 'Manual message read marking' option.
+        $CFG->forum_usermarksread = false;
+
+        // Set up a basic user enrolled in a course.
+        $userhelper = $this->helper_setup_user_in_course();
+        $user = $userhelper->user;
+        $course1 = $userhelper->courses->course1;
+        $forum1 = $userhelper->forums->forum1;
+        $posts = [];
+
+        // Set the tested user's default maildigest, trackforums, read tracking settings.
+        $DB->set_field('user', 'maildigest', 1, ['id' => $user->id]);
+        $DB->set_field('user', 'trackforums', 1, ['id' => $user->id]);
+        set_user_preference('forum_markasreadonnotification', 1, $user->id);
+
+        // Set the maildigest preference for forum1 to default.
+        forum_set_user_maildigest($forum1, -1, $user);
+
+        // Add 5 discussions to forum 1.
+        for ($i = 0; $i < 5; $i++) {
+            list($discussion, $post) = $this->helper_post_to_forum($forum1, $user, ['mailnow' => 1]);
+            $posts[] = $post;
+        }
+
+        // There should be unread posts for the forum.
+        $expectedposts = [
+            $forum1->id => (object) [
+                'id' => $forum1->id,
+                'unread' => count($posts),
+            ],
+        ];
+        $this->assertEquals($expectedposts, forum_tp_get_course_unread_posts($user->id, $course1->id));
+
+        // One digest mail should be sent and no other messages.
+        $expect = [
+            (object) [
+                'userid' => $user->id,
+                'messages' => 0,
+                'digests' => 1,
+            ],
+        ];
+        $this->queue_tasks_and_assert($expect);
+
+        $this->send_digests_and_assert($user, $posts);
+
+        // Verify that there are no unread posts for any forums.
+        $this->assertEmpty(forum_tp_get_course_unread_posts($user->id, $course1->id));
+    }
+
+    /**
+     * The sending of a digest does not mark posts as read when manual message read marking is set.
+     */
+    public function test_cron_digest_leaves_posts_unread() {
+        global $DB, $CFG;
+
+        $this->resetAfterTest(true);
+
+        // Enable the 'Manual message read marking' option.
+        $CFG->forum_usermarksread = true;
+
+        // Set up a basic user enrolled in a course.
+        $userhelper = $this->helper_setup_user_in_course();
+        $user = $userhelper->user;
+        $course1 = $userhelper->courses->course1;
+        $forum1 = $userhelper->forums->forum1;
+        $posts = [];
+
+        // Set the tested user's default maildigest, trackforums, read tracking settings.
+        $DB->set_field('user', 'maildigest', 1, ['id' => $user->id]);
+        $DB->set_field('user', 'trackforums', 1, ['id' => $user->id]);
+        set_user_preference('forum_markasreadonnotification', 1, $user->id);
+
+        // Set the maildigest preference for forum1 to default.
+        forum_set_user_maildigest($forum1, -1, $user);
+
+        // Add 5 discussions to forum 1.
+        for ($i = 0; $i < 5; $i++) {
+            list($discussion, $post) = $this->helper_post_to_forum($forum1, $user, ['mailnow' => 1]);
+            $posts[] = $post;
+        }
+
+        // There should be unread posts for the forum.
+        $expectedposts = [
+            $forum1->id => (object) [
+                'id' => $forum1->id,
+                'unread' => count($posts),
+            ],
+        ];
+        $this->assertEquals($expectedposts, forum_tp_get_course_unread_posts($user->id, $course1->id));
+
+        // One digest mail should be sent and no other messages.
+        $expect = [
+            (object) [
+                'userid' => $user->id,
+                'messages' => 0,
+                'digests' => 1,
+            ],
+        ];
+        $this->queue_tasks_and_assert($expect);
+
+        $this->send_digests_and_assert($user, $posts);
+
+        // Verify that there are still the same unread posts for the forum.
+        $this->assertEquals($expectedposts, forum_tp_get_course_unread_posts($user->id, $course1->id));
     }
 }

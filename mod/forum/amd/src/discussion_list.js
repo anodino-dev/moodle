@@ -34,7 +34,7 @@ define([
 ], function(
     $,
     Templates,
-    String,
+    Str,
     Notification,
     SubscriptionToggle,
     Selectors,
@@ -46,11 +46,13 @@ define([
         PubSub.subscribe(ForumEvents.SUBSCRIPTION_TOGGLED, function(data) {
             var discussionId = data.discussionId;
             var subscribed = data.subscriptionState;
-            var subscribedLabel = root.find(Selectors.discussion.item + '[data-discussionid= ' + discussionId + '] '
-                + Selectors.discussion.subscribedLabel);
+            var discussionListItem = root.find(Selectors.discussion.item + '[data-discussionid= ' + discussionId + ']');
+            var subscribedLabel = discussionListItem.find(Selectors.discussion.subscribedLabel);
             if (subscribed) {
+                discussionListItem.addClass('subscribed');
                 subscribedLabel.removeAttr('hidden');
             } else {
+                discussionListItem.removeClass('subscribed');
                 subscribedLabel.attr('hidden', true);
             }
         });
@@ -107,7 +109,7 @@ define([
                     return Templates.replaceNode(toggleElement, html, js);
                 })
                 .then(function() {
-                    return String.get_string('lockupdated', 'forum')
+                    return Str.get_string('lockupdated', 'forum')
                         .done(function(s) {
                             return Notification.addNotification({
                                 message: s,
@@ -123,10 +125,16 @@ define([
 
     return {
         init: function(root) {
-            SubscriptionToggle.init(root, true, function(toggleElement, context) {
-                return Templates.render('mod_forum/discussion_subscription_toggle', context)
-                    .then(function(html, js) {
-                        return Templates.replaceNode(toggleElement, html, js);
+            SubscriptionToggle.init(root, false, function(toggleElement, context) {
+                var toggleId = toggleElement.attr('id');
+                var newTargetState = context.userstate.subscribed ? 0 : 1;
+                toggleElement.data('targetstate', newTargetState);
+
+                var stringKey = context.userstate.subscribed ? 'unsubscribediscussion' : 'subscribediscussion';
+                return Str.get_string(stringKey, 'mod_forum')
+                    .then(function(string) {
+                        toggleElement.closest('td').find('label[for="' + toggleId + '"]').find('span').text(string);
+                        return string;
                     });
             });
             registerEventListeners(root);

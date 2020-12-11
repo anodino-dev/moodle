@@ -294,16 +294,14 @@ class mod_quiz_renderer extends plugin_renderer_base {
             $this->initialise_timer($timerstartvalue, $ispreview);
         }
 
-        return html_writer::tag('div', get_string('timeleft', 'quiz') . ' ' .
-                html_writer::tag('span', '', array('id' => 'quiz-time-left')),
-                array('id' => 'quiz-timer', 'role' => 'timer',
-                    'aria-atomic' => 'true', 'aria-relevant' => 'text'));
+
+        return $this->output->render_from_template('mod_quiz/timer', (object)[]);
     }
 
     /**
      * Create a preview link
      *
-     * @param $url contains a url to the given page
+     * @param moodle_url $url contains a url to the given page
      */
     public function restart_preview_button($url) {
         return $this->single_button($url, get_string('startnewpreview', 'quiz'));
@@ -351,7 +349,7 @@ class mod_quiz_renderer extends plugin_renderer_base {
      * @return string HTML fragment.
      */
     protected function render_quiz_nav_question_button(quiz_nav_question_button $button) {
-        $classes = array('qnbutton', $button->stateclass, $button->navmethod, 'btn', 'btn-secondary');
+        $classes = array('qnbutton', $button->stateclass, $button->navmethod, 'btn');
         $extrainfo = array();
 
         if ($button->currentpage) {
@@ -447,6 +445,7 @@ class mod_quiz_renderer extends plugin_renderer_base {
         $output = '';
         $output .= $this->header();
         $output .= $this->quiz_notices($messages);
+        $output .= $this->countdown_timer($attemptobj, time());
         $output .= $this->attempt_form($attemptobj, $page, $slots, $id, $nextpage);
         $output .= $this->footer();
         return $output;

@@ -41,7 +41,7 @@ require_once(__DIR__ . '/fixtures/test_analysis.php');
  */
 class analytics_model_testcase extends advanced_testcase {
 
-    public function setUp() {
+    public function setUp(): void {
 
         $this->setAdminUser();
 
@@ -292,7 +292,7 @@ class analytics_model_testcase extends advanced_testcase {
 
         $this->resetAfterTest(true);
 
-        set_config('modeltimelimit', 1, 'analytics');
+        set_config('modeltimelimit', 2, 'analytics');
 
         $courses = array();
         for ($i = 0; $i < 5; $i++) {
@@ -424,7 +424,7 @@ class analytics_model_testcase extends advanced_testcase {
         $modeldata = $method->invoke($modelconfig);
 
         $this->assertArrayHasKey('core', $modeldata->dependencies);
-        $this->assertInternalType('float', $modeldata->dependencies['core']);
+        $this->assertIsFloat($modeldata->dependencies['core']);
         $this->assertNotEmpty($modeldata->target);
         $this->assertNotEmpty($modeldata->timesplitting);
         $this->assertCount(3, $modeldata->indicators);

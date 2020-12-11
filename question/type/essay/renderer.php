@@ -45,7 +45,7 @@ class qtype_essay_renderer extends qtype_renderer {
 
         if (!$step->has_qt_var('answer') && empty($options->readonly)) {
             // Question has never been answered, fill it with response template.
-            $step = new question_attempt_step(array('answer'=>$question->responsetemplate));
+            $step = new question_attempt_step(array('answer' => $question->responsetemplate));
         }
 
         if (empty($options->readonly)) {
@@ -106,7 +106,7 @@ class qtype_essay_renderer extends qtype_renderer {
      */
     public function files_input(question_attempt $qa, $numallowed,
             question_display_options $options) {
-        global $CFG;
+        global $CFG, $COURSE;
         require_once($CFG->dirroot . '/lib/form/filemanager.php');
 
         $pickeroptions = new stdClass();
@@ -122,6 +122,12 @@ class qtype_essay_renderer extends qtype_renderer {
         $pickeroptions->accepted_types = $qa->get_question()->filetypeslist;
 
         $fm = new form_filemanager($pickeroptions);
+        $fm->options->maxbytes = get_user_max_upload_file_size(
+            $this->page->context,
+            $CFG->maxbytes,
+            $COURSE->maxbytes,
+            $qa->get_question()->maxbytes
+        );
         $filesrenderer = $this->page->get_renderer('core', 'files');
 
         $text = '';
@@ -225,7 +231,10 @@ class qtype_essay_format_editor_renderer extends plugin_renderer_base {
 
     public function response_area_read_only($name, $qa, $step, $lines, $context) {
         return html_writer::tag('div', $this->prepare_response($name, $qa, $step, $context),
-                array('class' => $this->class_name() . ' qtype_essay_response readonly'));
+                ['class' => $this->class_name() . ' qtype_essay_response readonly',
+                        'style' => 'min-height: ' . ($lines * 1.5) . 'em;']);
+        // Height $lines * 1.5 because that is a typical line-height on web pages.
+        // That seems to give results that look OK.
     }
 
     public function response_area_input($name, $qa, $step, $lines, $context) {

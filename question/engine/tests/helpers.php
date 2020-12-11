@@ -329,6 +329,7 @@ class test_question_maker {
 
         $mc->shuffleanswers = 1;
         $mc->answernumbering = 'abc';
+        $mc->showstandardinstruction = 0;
 
         $mc->answers = array(
             13 => new question_answer(13, 'A', 1, 'A is right', FORMAT_HTML),
@@ -355,6 +356,7 @@ class test_question_maker {
 
         $mc->shuffleanswers = 1;
         $mc->answernumbering = 'abc';
+        $mc->showstandardinstruction = 0;
 
         self::set_standard_combined_feedback_fields($mc);
 
@@ -375,29 +377,7 @@ class test_question_maker {
      * @return qtype_match_question
      */
     public static function make_a_matching_question() {
-        question_bank::load_question_definition_classes('match');
-        $match = new qtype_match_question();
-        self::initialise_a_question($match);
-        $match->name = 'Matching question';
-        $match->questiontext = 'Classify the animals.';
-        $match->generalfeedback = 'Frogs and toads are amphibians, the others are mammals.';
-        $match->qtype = question_bank::get_qtype('match');
-
-        $match->shufflestems = 1;
-
-        self::set_standard_combined_feedback_fields($match);
-
-        // Using unset to get 1-based arrays.
-        $match->stems = array('', 'Dog', 'Frog', 'Toad', 'Cat');
-        $match->stemformat = array('', FORMAT_HTML, FORMAT_HTML, FORMAT_HTML, FORMAT_HTML);
-        $match->choices = array('', 'Mammal', 'Amphibian', 'Insect');
-        $match->right = array('', 1, 2, 2, 1);
-        unset($match->stems[0]);
-        unset($match->stemformat[0]);
-        unset($match->choices[0]);
-        unset($match->right[0]);
-
-        return $match;
+        return self::make_question('match');
     }
 
     /**
@@ -431,7 +411,7 @@ class test_question_maker {
      * Add some standard overall feedback to a question. You need to use these
      * specific feedback strings for the corresponding contains_..._feedback
      * methods in {@link qbehaviour_walkthrough_test_base} to works.
-     * @param question_definition $q the question to add the feedback to.
+     * @param question_definition|stdClass $q the question to add the feedback to.
      */
     public static function set_standard_combined_feedback_fields($q) {
         $q->correctfeedback = self::STANDARD_OVERALL_CORRECT_FEEDBACK;
@@ -816,7 +796,7 @@ abstract class qbehaviour_walkthrough_test_base extends question_testcase {
      */
     protected $currentoutput = '';
 
-    protected function setUp() {
+    protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest(true);
 
@@ -825,7 +805,7 @@ abstract class qbehaviour_walkthrough_test_base extends question_testcase {
             context_system::instance());
     }
 
-    protected function tearDown() {
+    protected function tearDown(): void {
         $this->displayoptions = null;
         $this->quba = null;
         parent::tearDown();
@@ -918,8 +898,8 @@ abstract class qbehaviour_walkthrough_test_base extends question_testcase {
                 // so explicity check not null in this case.
                 $this->assertNotNull($this->quba->get_question_mark($this->slot));
             }
-            $this->assertEquals($mark, $this->quba->get_question_mark($this->slot),
-                'Expected mark and actual mark differ.', 0.000001);
+            $this->assertEqualsWithDelta($mark, $this->quba->get_question_mark($this->slot),
+                 0.000001, 'Expected mark and actual mark differ.');
         }
     }
 
@@ -994,13 +974,13 @@ abstract class qbehaviour_walkthrough_test_base extends question_testcase {
 
     protected function check_output_contains($string) {
         $this->render();
-        $this->assertContains($string, $this->currentoutput,
+        $this->assertStringContainsString($string, $this->currentoutput,
                 'Expected string ' . $string . ' not found in ' . $this->currentoutput);
     }
 
     protected function check_output_does_not_contain($string) {
         $this->render();
-        $this->assertNotContains($string, $this->currentoutput,
+        $this->assertStringNotContainsString($string, $this->currentoutput,
                 'String ' . $string . ' unexpectedly found in ' . $this->currentoutput);
     }
 

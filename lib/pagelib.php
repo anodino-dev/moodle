@@ -1241,9 +1241,10 @@ class moodle_page {
      * This is normally used as the main heading at the top of the content.
      *
      * @param string $heading the main heading that should be displayed at the top of the <body>.
+     * @param bool $applyformatting apply format_string() - by default true.
      */
-    public function set_heading($heading) {
-        $this->_heading = format_string($heading);
+    public function set_heading($heading, bool $applyformatting = true) {
+        $this->_heading = $applyformatting ? format_string($heading) : clean_text($heading);
     }
 
     /**
@@ -1573,6 +1574,15 @@ class moodle_page {
     }
 
     /**
+     * For diagnostic/debugging purposes, find where the theme setup was triggered.
+     *
+     * @return null|array null if theme not yet setup. Stacktrace if it was.
+     */
+    public function get_where_theme_was_initialised() {
+        return $this->_wherethemewasinitialised;
+    }
+
+    /**
      * Reset the theme and output for a new context. This only makes sense from
      * external::validate_context(). Do not cheat.
      *
@@ -1609,7 +1619,8 @@ class moodle_page {
         }
 
         $mnetpeertheme = '';
-        if (isloggedin() and isset($CFG->mnet_localhost_id) and $USER->mnethostid != $CFG->mnet_localhost_id) {
+        $mnetvarsok = isset($CFG->mnet_localhost_id) && isset($USER->mnethostid);
+        if (isloggedin() and $mnetvarsok and $USER->mnethostid != $CFG->mnet_localhost_id) {
             require_once($CFG->dirroot.'/mnet/peer.php');
             $mnetpeer = new mnet_peer();
             $mnetpeer->set_id($USER->mnethostid);
@@ -2040,7 +2051,8 @@ class moodle_page {
             $reportnode = $myprofilenode->add(get_string('reports'));
         }
         // Finally add the report to the navigation tree.
-        $reportnode->add($nodeinfo['name'], $nodeinfo['url'], navigation_node::TYPE_COURSE);
+        $reportnode->add($nodeinfo['name'], $nodeinfo['url'], navigation_node::TYPE_CUSTOM, null, null,
+            new pix_icon('i/report', $nodeinfo['name']));
     }
 
     /**

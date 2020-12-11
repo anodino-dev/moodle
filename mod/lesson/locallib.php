@@ -301,9 +301,11 @@ function lesson_grade($lesson, $ntries, $userid = 0) {
             $attemptset[$useranswer->pageid][] = $useranswer;
         }
 
-        // Drop all attempts that go beyond max attempts for the lesson
-        foreach ($attemptset as $key => $set) {
-            $attemptset[$key] = array_slice($set, 0, $lesson->maxattempts);
+        if (!empty($lesson->maxattempts)) {
+            // Drop all attempts that go beyond max attempts for the lesson.
+            foreach ($attemptset as $key => $set) {
+                $attemptset[$key] = array_slice($set, 0, $lesson->maxattempts);
+            }
         }
 
         // get only the pages and their answers that the user answered
@@ -584,7 +586,7 @@ function lesson_add_header_buttons($cm, $context, $extraeditbuttons=false, $less
                 'id'       => $cm->id,
                 'pageid'   => $lessonpageid,
                 'edit'     => 1,
-                'returnto' => $PAGE->url->out(false)
+                'returnto' => $PAGE->url->out_as_local_url(false)
             ));
             $PAGE->set_button($OUTPUT->single_button($url, get_string('editpagecontent', 'lesson')));
         }
@@ -1363,7 +1365,7 @@ abstract class lesson_add_page_form_base extends moodleform {
 
         if (!empty($this->_customdata['returnto'])) {
             $mform->addElement('hidden', 'returnto', $this->_customdata['returnto']);
-            $mform->setType('returnto', PARAM_URL);
+            $mform->setType('returnto', PARAM_LOCALURL);
         }
 
         $mform->addElement('hidden', 'id');
@@ -1458,9 +1460,11 @@ abstract class lesson_add_page_form_base extends moodleform {
      * @param string $label, null means default
      * @param bool $required
      * @param string $format
+     * @param array $help Add help text via the addHelpButton. Must be an array which contains the string identifier and
+     *                      component as it's elements
      * @return void
      */
-    protected final function add_answer($count, $label = null, $required = false, $format= '') {
+    protected final function add_answer($count, $label = null, $required = false, $format= '', array $help = []) {
         if ($label === null) {
             $label = get_string('answer', 'lesson');
         }
@@ -1473,12 +1477,16 @@ abstract class lesson_add_page_form_base extends moodleform {
             $this->_form->setDefault('answer_editor['.$count.']', array('text' => '', 'format' => FORMAT_HTML));
         } else {
             $this->_form->addElement('text', 'answer_editor['.$count.']', $label,
-                    array('size' => '50', 'maxlength' => '200'));
+                array('size' => '50', 'maxlength' => '200'));
             $this->_form->setType('answer_editor['.$count.']', PARAM_TEXT);
         }
 
         if ($required) {
             $this->_form->addRule('answer_editor['.$count.']', get_string('required'), 'required', null, 'client');
+        }
+
+        if ($help) {
+            $this->_form->addHelpButton("answer_editor[$count]", $help['identifier'], $help['component']);
         }
     }
     /**
@@ -2311,7 +2319,7 @@ class lesson extends lesson_base {
                 if ($instancename) {
                     return html_writer::link(new moodle_url('/mod/'.$modname.'/view.php',
                         array('id' => $this->properties->activitylink)), get_string('activitylinkname',
-                        'lesson', $instancename), array('class' => 'centerpadded lessonbutton standardbutton p-r-1'));
+                        'lesson', $instancename), array('class' => 'centerpadded lessonbutton standardbutton pr-3'));
                 }
             }
         }
@@ -3653,6 +3661,23 @@ class lesson extends lesson_base {
         }
         return $data;
     }
+
+    /**
+     * Returns the last "legal" attempt from the list of student attempts.
+     *
+     * @param array $attempts The list of student attempts.
+     * @return stdClass The updated fom data.
+     */
+    public function get_last_attempt(array $attempts): stdClass {
+        // If there are more tries than the max that is allowed, grab the last "legal" attempt.
+        if (!empty($this->maxattempts) && (count($attempts) > $this->maxattempts)) {
+            $lastattempt = $attempts[$this->maxattempts - 1];
+        } else {
+            // Grab the last attempt since there's no limit to the max attempts or the user has made fewer attempts than the max.
+            $lastattempt = end($attempts);
+        }
+        return $lastattempt;
+    }
 }
 
 
@@ -4126,7 +4151,7 @@ abstract class lesson_page extends lesson_base {
                     'userid' => $USER->id, 'pageid' => $this->properties->id, 'retry' => $nretakes));
 
                 // Check if they have reached (or exceeded) the maximum number of attempts allowed.
-                if ($nattempts >= $this->lesson->maxattempts) {
+                if (!empty($this->lesson->maxattempts) && $nattempts >= $this->lesson->maxattempts) {
                     $result->maxattemptsreached = true;
                     $result->feedback = get_string('maximumnumberofattemptsreached', 'lesson');
                     $result->newpageid = $this->lesson->get_next_page($this->properties->nextpageid);
@@ -4194,8 +4219,8 @@ abstract class lesson_page extends lesson_base {
                 // "number of attempts remaining" message if $this->lesson->maxattempts > 1
                 // displaying of message(s) is at the end of page for more ergonomic display
                 if (!$result->correctanswer && ($result->newpageid == 0)) {
-                    // retreive the number of attempts left counter for displaying at bottom of feedback page
-                    if ($nattempts >= $this->lesson->maxattempts) {
+                    // Retrieve the number of attempts left counter for displaying at bottom of feedback page.
+                    if (!empty($this->lesson->maxattempts) && $nattempts >= $this->lesson->maxattempts) {
                         if ($this->lesson->maxattempts > 1) { // don't bother with message if only one attempt
                             $result->maxattemptsreached = true;
                         }
@@ -4255,7 +4280,7 @@ abstract class lesson_page extends lesson_base {
                 $options->attemptid = isset($attempt) ? $attempt->id : null;
 
                 $result->feedback .= $OUTPUT->box(format_text($this->get_contents(), $this->properties->contentsformat, $options),
-                        'generalbox boxaligncenter p-y-1');
+                        'generalbox boxaligncenter py-3');
                 $result->feedback .= '<div class="correctanswer generalbox"><em>'
                         . get_string("youranswer", "lesson").'</em> : <div class="studentanswer mt-2 mb-2">';
 
@@ -4530,6 +4555,7 @@ abstract class lesson_page extends lesson_base {
                     $this->answers[$i]->lessonid = $this->lesson->id;
                     $this->answers[$i]->pageid = $this->id;
                     $this->answers[$i]->timecreated = $this->timecreated;
+                    $this->answers[$i]->answer = null;
                 }
 
                 if (isset($properties->answer_editor[$i])) {
@@ -4542,6 +4568,9 @@ abstract class lesson_page extends lesson_base {
                         $this->answers[$i]->answer = $properties->answer_editor[$i];
                         $this->answers[$i]->answerformat = FORMAT_MOODLE;
                     }
+                } else {
+                    // If there is no data posted which means we want to reset the stored values.
+                    $this->answers[$i]->answer = null;
                 }
 
                 if (!empty($properties->response_editor[$i]) && is_array($properties->response_editor[$i])) {

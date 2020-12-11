@@ -40,6 +40,7 @@
  *  - $CFG->tempdir  - Path to moodle's temp file directory on server's filesystem.
  *  - $CFG->cachedir - Path to moodle's cache directory on server's filesystem (shared by cluster nodes).
  *  - $CFG->localcachedir - Path to moodle's local cache directory (not shared by cluster nodes).
+ *  - $CFG->localrequestdir - Path to moodle's local temp request directory (not shared by cluster nodes).
  *
  * @global object $CFG
  * @name $CFG
@@ -206,6 +207,11 @@ if (!isset($CFG->cachedir)) {
 // Allow overriding of localcachedir.
 if (!isset($CFG->localcachedir)) {
     $CFG->localcachedir = "$CFG->dataroot/localcache";
+}
+
+// Allow overriding of localrequestdir.
+if (!isset($CFG->localrequestdir)) {
+    $CFG->localrequestdir = sys_get_temp_dir() . '/requestdir';
 }
 
 // Location of all languages except core English pack.
@@ -534,6 +540,9 @@ global $FULLSCRIPT;
  */
 global $SCRIPT;
 
+// The httpswwwroot has been deprecated, we keep it as an alias for backwards compatibility with plugins only.
+$CFG->httpswwwroot = $CFG->wwwroot;
+
 require_once($CFG->libdir .'/setuplib.php');        // Functions that MUST be loaded first
 
 if (NO_OUTPUT_BUFFERING) {
@@ -561,6 +570,11 @@ if (!PHPUNIT_TEST or PHPUNIT_UTIL) {
 if (defined('BEHAT_SITE_RUNNING') && !defined('BEHAT_TEST') && !defined('BEHAT_UTIL')) {
     require_once(__DIR__ . '/behat/lib.php');
     set_error_handler('behat_error_handler', E_ALL | E_STRICT);
+}
+
+if (defined('WS_SERVER') && WS_SERVER) {
+    require_once($CFG->dirroot . '/webservice/lib.php');
+    set_exception_handler('early_ws_exception_handler');
 }
 
 // If there are any errors in the standard libraries we want to know!
@@ -785,7 +799,7 @@ if (CLI_SCRIPT) {
 
 // Start session and prepare global $SESSION, $USER.
 if (empty($CFG->sessiontimeout)) {
-    $CFG->sessiontimeout = 7200;
+    $CFG->sessiontimeout = 8 * 60 * 60;
 }
 \core\session\manager::start();
 
@@ -1044,7 +1058,7 @@ foreach ($pluginswithfunction as $plugins) {
     foreach ($plugins as $function) {
         try {
             $function();
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             debugging("Exception calling '$function'", DEBUG_DEVELOPER, $e->getTrace());
         }
     }

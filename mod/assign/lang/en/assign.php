@@ -212,6 +212,7 @@ $string['fixrescalednullgrades'] = 'This assignment contains some erroneous grad
 $string['fixrescalednullgradesconfirm'] = 'Are you sure you want to fix erroneous grades? All affected grades will be removed. This may affect course totals.';
 $string['fixrescalednullgradesdone'] = 'Grades fixed.';
 $string['gradecanbechanged'] = 'Grade can be changed';
+$string['gradeitem:submissions'] = 'Submissions';
 $string['gradersubmissionupdatedtext'] = '{$a->username} has updated their assignment submission
 for \'{$a->assignment}\' at {$a->timeupdated}
 
@@ -290,14 +291,22 @@ $string['groupoverrides'] = 'Group overrides';
 $string['groupoverridesdeleted'] = 'Group overrides deleted';
 $string['groupsnone'] = 'No groups you can access.';
 $string['hidegrader'] = 'Hide grader identity from students';
-$string['hidegrader_help'] = 'Hides the identity of any user who grades an assignment submission, so students can\'t see who marked their work.';
+$string['hidegrader_help'] = 'If enabled, the identity of any user who grades an assignment submission is not shown, so students can\'t see who marked their work.
+
+Note that this setting has no effect on the comments box on the grading page.';
 $string['hideshow'] = 'Hide/Show';
 $string['hiddenuser'] = 'Participant ';
-$string['inactiveoverridehelp'] = '* Student does not have the correct group or role to attempt the assignment';
+$string['inactiveoverridehelp'] = '* This override is inactive because the user\'s access to the activity is restricted. This can be due to group or role assignments, other access restrictions, or the activity being hidden.';
 $string['indicator:cognitivedepth'] = 'Assignment cognitive';
 $string['indicator:cognitivedepth_help'] = 'This indicator is based on the cognitive depth reached by the student in an assignment activity.';
+$string['indicator:cognitivedepthdef'] = 'Assignment cognitive';
+$string['indicator:cognitivedepthdef_help'] = 'The participant has reached this percentage of the cognitive engagement offered by the Assignment activities during this analysis interval (Levels = No view, View, Submit, View feedback, Comment on feedback, Resubmit after viewing feedback)';
+$string['indicator:cognitivedepthdef_link'] = 'Learning_analytics_indicators#Cognitive_depth';
 $string['indicator:socialbreadth'] = 'Assignment social';
 $string['indicator:socialbreadth_help'] = 'This indicator is based on the social breadth reached by the student in an assignment activity.';
+$string['indicator:socialbreadthdef'] = 'Assignment social';
+$string['indicator:socialbreadthdef_help'] = 'The participant has reached this percentage of the social engagement offered by the Assignment activities during this analysis interval (Levels = No participation, Participant alone, Participant with others)';
+$string['indicator:socialbreadthdef_link'] = 'Learning_analytics_indicators#Social_breadth';
 $string['instructionfiles'] = 'Instruction files';
 $string['introattachments'] = 'Additional files';
 $string['introattachments_help'] = 'Additional files for use in the assignment, such as answer templates, may be added. Download links for the files will then be displayed on the assignment page under the description.';
@@ -528,7 +537,6 @@ $string['submissionreceipthtml'] = '<p>You have submitted an assignment submissi
 $string['submissionreceiptsmall'] = 'You have submitted your assignment submission for {$a->assignment}';
 $string['submissionslocked'] = 'This assignment is not accepting submissions';
 $string['submissionslockedshort'] = 'Submission changes not allowed';
-$string['submissions'] = 'Submissions';
 $string['submissionsclosed'] = 'Submissions closed';
 $string['submissionsettings'] = 'Submission settings';
 $string['submissionstatement'] = 'Submission statement';
@@ -594,6 +602,7 @@ $string['userassignmentdefaults'] = 'User assignment defaults';
 $string['useridlistnotcached'] = 'The grade changes were NOT saved, as it was not possible to determine which submission they were for.';
 $string['useroverrides'] = 'User overrides';
 $string['useroverridesdeleted'] = 'User overrides deleted';
+$string['usersubmissioncannotberemoved'] = 'The submission of {$a} cannot be removed.';
 $string['usersnone'] = 'No students have access to this assignment.';
 $string['userswhoneedtosubmit'] = 'Users who need to submit: {$a}';
 $string['usergrade'] = 'User grade';

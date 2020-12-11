@@ -31,13 +31,13 @@ require_once($CFG->dirroot . '/rating/lib.php');
 
 class mod_forum_lib_testcase extends advanced_testcase {
 
-    public function setUp() {
+    public function setUp(): void {
         // We must clear the subscription caches. This has to be done both before each test, and after in case of other
         // tests using these functions.
         \mod_forum\subscriptions::reset_forum_cache();
     }
 
-    public function tearDown() {
+    public function tearDown(): void {
         // We must clear the subscription caches. This has to be done both before each test, and after in case of other
         // tests using these functions.
         \mod_forum\subscriptions::reset_forum_cache();
@@ -3695,5 +3695,27 @@ class mod_forum_lib_testcase extends advanced_testcase {
         $forum = $DB->get_record('forum', ['id' => $forum->id]);
         $this->assertEquals($newduedate, $forum->duedate);
         $this->assertEquals($cutoffdate, $forum->cutoffdate);
+    }
+
+    /**
+     * Test forum_get_layout_modes function.
+     */
+    public function test_forum_get_layout_modes() {
+        $expectednormal = [
+            FORUM_MODE_FLATOLDEST => get_string('modeflatoldestfirst', 'forum'),
+            FORUM_MODE_FLATNEWEST => get_string('modeflatnewestfirst', 'forum'),
+            FORUM_MODE_THREADED   => get_string('modethreaded', 'forum'),
+            FORUM_MODE_NESTED => get_string('modenested', 'forum')
+        ];
+        $expectedexperimental = [
+            FORUM_MODE_FLATOLDEST => get_string('modeflatoldestfirst', 'forum'),
+            FORUM_MODE_FLATNEWEST => get_string('modeflatnewestfirst', 'forum'),
+            FORUM_MODE_THREADED   => get_string('modethreaded', 'forum'),
+            FORUM_MODE_NESTED_V2 => get_string('modenestedv2', 'forum')
+        ];
+
+        $this->assertEquals($expectednormal, forum_get_layout_modes());
+        $this->assertEquals($expectednormal, forum_get_layout_modes(false));
+        $this->assertEquals($expectedexperimental, forum_get_layout_modes(true));
     }
 }

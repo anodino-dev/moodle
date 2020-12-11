@@ -29,12 +29,16 @@ define([
         'jquery',
         'core/templates',
         'core/notification',
+        'core/pending',
+        'core/yui',
         'mod_forum/selectors',
         'mod_forum/inpage_reply',
     ], function(
         $,
         Templates,
         Notification,
+        Pending,
+        Y,
         Selectors,
         InPageReply
     ) {
@@ -52,6 +56,7 @@ define([
                 var url = window.location.href.split('#')[0];
                 history.pushState({}, document.title, url);
             }
+            var pending = new Pending('inpage-reply');
             var currentTarget = $(e.currentTarget).parents(Selectors.post.forumCoreContent);
             var currentSubject = currentTarget.find(Selectors.post.forumSubject);
             var currentRoot = $(e.currentTarget).parents(Selectors.post.forumContent);
@@ -70,12 +75,20 @@ define([
                         return Templates.appendNodeContents(currentTarget, html, js);
                     })
                     .then(function() {
-                        return currentRoot.find(Selectors.post.inpageReplyContent).slideToggle(300).find('textarea').focus();
+                        return currentRoot.find(Selectors.post.inpageReplyContent)
+                            .slideToggle(300, pending.resolve).find('textarea').focus();
+                    })
+                    .then(function() {
+                        // Load formchangechecker module.
+                        Y.use('moodle-core-formchangechecker', () => {
+                            M.core_formchangechecker.init({formid: `inpage-reply-${context.postid}`});
+                        });
+                        return;
                     })
                     .fail(Notification.exception);
             } else {
                 var form = currentRoot.find(Selectors.post.inpageReplyContent);
-                form.slideToggle(300);
+                form.slideToggle(300, pending.resolve);
                 if (form.is(':visible')) {
                     form.find('textarea').focus();
                 }

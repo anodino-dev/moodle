@@ -177,6 +177,9 @@ class core_block_externallib_testcase extends externallib_advanced_testcase {
         $blocks = $page->blocks->get_blocks_for_region($page->blocks->get_default_region());
         $block = end($blocks);
         $block = block_instance('html', $block->instance);
+        $nonscalar = [
+            'something' => true,
+        ];
         $configdata = (object) [
             'title' => $title,
             'text' => [
@@ -184,6 +187,7 @@ class core_block_externallib_testcase extends externallib_advanced_testcase {
                 'text' => $body,
                 'format' => $bodyformat,
             ],
+            'nonscalar' => $nonscalar
         ];
         $block->instance_config_save((object) $configdata);
         $filename = 'img.png';
@@ -215,17 +219,99 @@ class core_block_externallib_testcase extends externallib_advanced_testcase {
         $this->assertEquals($newblock, $result['blocks'][0]['name']);
         $configcounts = 0;
         foreach ($result['blocks'][0]['configs'] as $config) {
-            if ($config['type'] = 'plugin' && $config['name'] == 'allowcssclasses' && $config['value'] == 0) {
+            if ($config['type'] = 'plugin' && $config['name'] == 'allowcssclasses' && $config['value'] == json_encode('0')) {
                 $configcounts++;
-            } else if ($config['type'] = 'instance' && $config['name'] == 'text' && $config['value'] == $body) {
+            } else if ($config['type'] = 'instance' && $config['name'] == 'text' && $config['value'] == json_encode($body)) {
                 $configcounts++;
-            } else if ($config['type'] = 'instance' && $config['name'] == 'title' && $config['value'] == $title) {
+            } else if ($config['type'] = 'instance' && $config['name'] == 'title' && $config['value'] == json_encode($title)) {
                 $configcounts++;
-            } else if ($config['type'] = 'instance' && $config['name'] == 'format' && $config['value'] == 0) {
+            } else if ($config['type'] = 'instance' && $config['name'] == 'format' && $config['value'] == json_encode('0')) {
+                $configcounts++;
+            } else if ($config['type'] = 'instance' && $config['name'] == 'nonscalar' &&
+                    $config['value'] == json_encode($nonscalar)) {
                 $configcounts++;
             }
         }
-        $this->assertEquals(4, $configcounts);
+        $this->assertEquals(5, $configcounts);
+    }
+
+    /**
+     * Test get_course_blocks contents with mathjax.
+     */
+    public function test_get_course_blocks_contents_with_mathjax() {
+        global $DB, $CFG;
+
+        require_once($CFG->dirroot . '/lib/externallib.php');
+
+        $this->resetAfterTest(true);
+
+        // Enable MathJax filter in content and headings.
+        $this->configure_filters([
+            ['name' => 'mathjaxloader', 'state' => TEXTFILTER_ON, 'move' => -1, 'applytostrings' => true],
+        ]);
+
+        // Create a few stuff to test with.
+        $user = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course();
+        $studentrole = $DB->get_record('role', array('shortname' => 'student'));
+        $this->getDataGenerator()->enrol_user($user->id, $course->id, $studentrole->id);
+        $coursecontext = context_course::instance($course->id);
+
+        // Create a HTML block.
+        $title = 'My block $$(a+b)=2$$';
+        $body = 'My block contents $$(a+b)=2$$';
+        $bodyformat = FORMAT_MOODLE;
+        $page = new moodle_page();
+        $page->set_context($coursecontext);
+        $page->set_pagelayout('course');
+        $course->format = course_get_format($course)->get_format();
+        $page->set_pagetype('course-view-' . $course->format);
+        $page->blocks->load_blocks();
+        $newblock = 'html';
+        $page->blocks->add_block_at_end_of_default_region($newblock);
+
+        $this->setUser($user);
+        // Re-create the page.
+        $page = new moodle_page();
+        $page->set_context($coursecontext);
+        $page->set_pagelayout('course');
+        $course->format = course_get_format($course)->get_format();
+        $page->set_pagetype('course-view-' . $course->format);
+        $page->blocks->load_blocks();
+        $blocks = $page->blocks->get_blocks_for_region($page->blocks->get_default_region());
+        $block = end($blocks);
+        $block = block_instance('html', $block->instance);
+        $nonscalar = [
+            'something' => true,
+        ];
+        $configdata = (object) [
+            'title' => $title,
+            'text' => [
+                'itemid' => 0,
+                'text' => $body,
+                'format' => $bodyformat,
+            ],
+            'nonscalar' => $nonscalar
+        ];
+        $block->instance_config_save((object) $configdata);
+
+        // Check for the new block.
+        $result = core_block_external::get_course_blocks($course->id, true);
+        $result = external_api::clean_returnvalue(core_block_external::get_course_blocks_returns(), $result);
+
+        // Format the original data.
+        $sitecontext = context_system::instance();
+        $title = external_format_string($title, $coursecontext->id);
+        list($body, $bodyformat) = external_format_text($body, $bodyformat, $coursecontext->id, 'block_html', 'content');
+
+        // Check that the block data is formatted.
+        $this->assertCount(1, $result['blocks']);
+        $this->assertStringContainsString('<span class="filter_mathjaxloader_equation">',
+                $result['blocks'][0]['contents']['title']);
+        $this->assertStringContainsString('<span class="filter_mathjaxloader_equation">',
+                $result['blocks'][0]['contents']['content']);
+        $this->assertEquals($title, $result['blocks'][0]['contents']['title']);
+        $this->assertEquals($body, $result['blocks'][0]['contents']['content']);
     }
 
     /**
@@ -260,9 +346,11 @@ class core_block_externallib_testcase extends externallib_advanced_testcase {
             $returnedblocks[] = $block['name'];
             // Check the configuration returned for this default block.
             if ($block['name'] == 'recentlyaccessedcourses') {
-                $this->assertEquals('displaycategories', $block['configs'][0]['name']);
-                $this->assertEquals(0, $block['configs'][0]['value']);
-                $this->assertEquals('plugin', $block['configs'][0]['type']);
+                // Convert config to associative array to avoid DB sorting randomness.
+                $config = array_column($block['configs'], null, 'name');
+                $this->assertArrayHasKey('displaycategories', $config);
+                $this->assertEquals(json_encode('0'), $config['displaycategories']['value']);
+                $this->assertEquals('plugin', $config['displaycategories']['type']);
             }
         }
         // Remove lp block.

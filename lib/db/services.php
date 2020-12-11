@@ -101,6 +101,24 @@ $functions = array(
         'ajax'          => true,
         'loginrequired' => true,
     ),
+    'core_backup_get_copy_progress' => array(
+        'classname'   => 'core_backup_external',
+        'classpath' => 'backup/externallib.php',
+        'methodname'  => 'get_copy_progress',
+        'description' => 'Gets the progress of course copy operations.',
+        'type'        => 'read',
+        'ajax'          => true,
+        'loginrequired' => true,
+    ),
+    'core_backup_submit_copy_form' => array(
+        'classname'   => 'core_backup_external',
+        'classpath' => 'backup/externallib.php',
+        'methodname'  => 'submit_copy_form',
+        'description' => 'Handles ajax submission of course copy form.',
+        'type'        => 'read',
+        'ajax'          => true,
+        'loginrequired' => true,
+    ),
     'core_badges_get_user_badges' => array(
         'classname'     => 'core_badges_external',
         'methodname'    => 'get_user_badges',
@@ -261,6 +279,21 @@ $functions = array(
         'type' => 'read',
         'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
+    'core_calendar_get_timestamps' => [
+        'classname'     => 'core_calendar_external',
+        'methodname'    => 'get_timestamps',
+        'description'   => 'Fetch unix timestamps for given date times.',
+        'classpath' => 'calendar/externallib.php',
+        'type'          => 'read',
+        'ajax'          => true,
+    ],
+    'core_calendar_get_calendar_export_token' => [
+        'classname'     => 'core_calendar\external\export\token',
+        'methodname'    => 'execute',
+        'description'   => 'Return the auth token required for exporting a calendar.',
+        'type'          => 'read',
+        'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
+    ],
     'core_cohort_add_cohort_members' => array(
         'classname' => 'core_cohort_external',
         'methodname' => 'add_cohort_members',
@@ -613,6 +646,54 @@ $functions = array(
         'ajax' => true,
         'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
+    'core_course_get_enrolled_users_by_cmid' => array(
+        'classname' => 'core_course_external',
+        'methodname' => 'get_enrolled_users_by_cmid',
+        'classpath' => 'course/externallib.php',
+        'description' => 'List users by course module id & filter by group id.',
+        'type' => 'read',
+        'ajax' => true,
+    ),
+    'core_course_add_content_item_to_user_favourites' => array(
+        'classname' => 'core_course_external',
+        'methodname' => 'add_content_item_to_user_favourites',
+        'classpath' => 'course/externallib.php',
+        'description' => 'Adds a content item (activity, resource or their subtypes) to the favourites for the user.',
+        'type' => 'write',
+        'ajax' => true,
+    ),
+    'core_course_remove_content_item_from_user_favourites' => array(
+        'classname' => 'core_course_external',
+        'methodname' => 'remove_content_item_from_user_favourites',
+        'classpath' => 'course/externallib.php',
+        'description' => 'Removes a content item (activity, resource or their subtypes) from the favourites for the user.',
+        'type' => 'write',
+        'ajax' => true,
+    ),
+    'core_course_get_course_content_items' => array(
+        'classname' => 'core_course_external',
+        'methodname' => 'get_course_content_items',
+        'classpath' => 'course/externallib.php',
+        'description' => 'Fetch all the content items (activities, resources and their subtypes) for the activity picker',
+        'type' => 'read',
+        'ajax' => true,
+    ),
+    'core_course_get_activity_chooser_footer' => array(
+        'classname' => 'core_course_external',
+        'methodname' => 'get_activity_chooser_footer',
+        'classpath' => 'course/externallib.php',
+        'description' => 'Fetch the data for the activity chooser footer.',
+        'type' => 'read',
+        'ajax' => true,
+    ),
+    'core_course_toggle_activity_recommendation' => array(
+        'classname' => 'core_course_external',
+        'methodname' => 'toggle_activity_recommendation',
+        'classpath' => 'course/externallib.php',
+        'description' => 'Adds or removes an activity as a recommendation in the activity chooser.',
+        'type' => 'write',
+        'ajax' => true,
+    ),
     'core_enrol_get_course_enrolment_methods' => array(
         'classname' => 'core_enrol_external',
         'methodname' => 'get_course_enrolment_methods',
@@ -700,6 +781,7 @@ $functions = array(
         'type' => 'read',
         'loginrequired' => false,
         'ajax' => true,
+        'readonlysession' => false, // Fetching removes from stack.
     ),
     'core_session_touch' => array(
         'classname' => 'core\session\external',
@@ -731,6 +813,13 @@ $functions = array(
         'description' => 'upload a file to moodle',
         'type'        => 'write',
         'classpath'   => 'files/externallib.php',
+    ),
+    'core_files_delete_draft_files' => array(
+        'classname' => 'core_files\external\delete\draft',
+        'methodname' => 'execute',
+        'description' => 'Delete the indicated files (or directories) from a user draft file area.',
+        'type'        => 'write',
+        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
     'core_form_get_filetypes_browser_data' => array(
         'classname' => 'core_form\external',
@@ -801,6 +890,47 @@ $functions = array(
         'methodname' => 'update_grades',
         'description' => 'Update a grade item and associated student grades.',
         'type' => 'write',
+    ),
+    'core_grades_grader_gradingpanel_point_fetch' => [
+        'classname' => 'core_grades\\grades\\grader\\gradingpanel\\point\\external\\fetch',
+        'methodname' => 'execute',
+        'description' => 'Fetch the data required to display the grader grading panel for simple grading, ' .
+            'creating the grade item if required',
+        'type' => 'write',
+        'ajax' => true,
+        'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE],
+    ],
+    'core_grades_grader_gradingpanel_point_store' => [
+        'classname' => 'core_grades\\grades\\grader\\gradingpanel\\point\\external\\store',
+        'methodname' => 'execute',
+        'description' => 'Store the data required to display the grader grading panel for simple grading',
+        'type' => 'write',
+        'ajax' => true,
+        'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE],
+    ],
+    'core_grades_grader_gradingpanel_scale_fetch' => [
+        'classname' => 'core_grades\\grades\\grader\\gradingpanel\\scale\\external\\fetch',
+        'methodname' => 'execute',
+        'description' => 'Fetch the data required to display the grader grading panel for scale-based grading, ' .
+            'creating the grade item if required',
+        'type' => 'write',
+        'ajax' => true,
+        'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE],
+    ],
+    'core_grades_grader_gradingpanel_scale_store' => [
+        'classname' => 'core_grades\\grades\\grader\\gradingpanel\\scale\\external\\store',
+        'methodname' => 'execute',
+        'description' => 'Store the data required to display the grader grading panel for scale-based grading',
+        'type' => 'write',
+        'ajax' => true,
+        'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE],
+    ],
+    'core_grades_create_gradecategory' => array (
+        'classname' => 'core_grades_external',
+        'methodname' => 'create_gradecategory',
+        'description' => 'Create a grade category inside a course gradebook.',
+        'type' => 'write',
+        'capabilities' => 'moodle/grade:manage',
     ),
     'core_grading_get_definitions' => array(
         'classname' => 'core_grading_external',
@@ -988,26 +1118,6 @@ $functions = array(
         'ajax' => true,
         'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
-    'core_message_block_contacts' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'block_contacts',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Block contacts',
-        'type' => 'write',
-        'ajax' => true,
-        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
-    ),
-    'core_message_create_contacts' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'create_contacts',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Add contacts to the contact list',
-        'type' => 'write',
-        'ajax' => true,
-        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
-    ),
     'core_message_get_contact_requests' => array(
         'classname' => 'core_message_external',
         'methodname' => 'get_contact_requests',
@@ -1062,17 +1172,6 @@ $functions = array(
         'ajax' => true,
         'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
-    'core_message_delete_conversation' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'delete_conversation',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Deletes a conversation.',
-        'type' => 'write',
-        'capabilities' => 'moodle/site:deleteownmessage',
-        'ajax' => true,
-        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
-    ),
     'core_message_delete_conversations_by_id' => array(
         'classname' => 'core_message_external',
         'methodname' => 'delete_conversations_by_id',
@@ -1110,24 +1209,6 @@ $functions = array(
         'ajax' => true,
         'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
-    'core_message_data_for_messagearea_search_users' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'data_for_messagearea_search_users',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Retrieve the template data for searching for people',
-        'type' => 'read',
-        'ajax' => true,
-    ),
-    'core_message_data_for_messagearea_search_users_in_course' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'data_for_messagearea_search_users_in_course',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Retrieve the template data for searching for people in a course',
-        'type' => 'read',
-        'ajax' => true,
-    ),
     'core_message_message_search_users' => array(
         'classname' => 'core_message_external',
         'methodname' => 'message_search_users',
@@ -1135,63 +1216,6 @@ $functions = array(
         'description' => 'Retrieve the data for searching for people',
         'type' => 'read',
         'ajax' => true,
-        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
-    ),
-    'core_message_data_for_messagearea_conversations' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'data_for_messagearea_conversations',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Retrieve the template data for the conversation list',
-        'type' => 'read',
-        'ajax' => true,
-        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
-    ),
-    'core_message_data_for_messagearea_contacts' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'data_for_messagearea_contacts',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Retrieve the template data for the contact list',
-        'type' => 'read',
-        'ajax' => true,
-        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
-    ),
-    'core_message_data_for_messagearea_messages' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'data_for_messagearea_messages',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Retrieve the template data for the messages',
-        'type' => 'read',
-        'ajax' => true,
-        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
-    ),
-    'core_message_data_for_messagearea_get_most_recent_message' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'data_for_messagearea_get_most_recent_message',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Retrieve the template data for the most recent message',
-        'type' => 'read',
-        'ajax' => true,
-    ),
-    'core_message_data_for_messagearea_get_profile' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'data_for_messagearea_get_profile',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Retrieve the template data for the users\'s profile',
-        'type' => 'read',
-        'ajax' => true,
-    ),
-    'core_message_get_contacts' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'get_contacts',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Retrieve the contact list',
-        'type' => 'read',
         'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
     'core_message_get_user_contacts' => array(
@@ -1292,22 +1316,13 @@ $functions = array(
         'type' => 'read',
         'ajax' => true,
         'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
+        'readonlysession' => true, // We don't modify the session.
     ),
     'core_message_mark_all_notifications_as_read' => array(
         'classname' => 'core_message_external',
         'methodname' => 'mark_all_notifications_as_read',
         'classpath' => 'message/externallib.php',
         'description' => 'Mark all notifications as read for a given user',
-        'type' => 'write',
-        'ajax' => true,
-        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
-    ),
-    'core_message_mark_all_messages_as_read' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'mark_all_messages_as_read',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                          Mark all messages as read for a given user',
         'type' => 'write',
         'ajax' => true,
         'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
@@ -1398,16 +1413,6 @@ $functions = array(
         'methodname' => 'unblock_user',
         'classpath' => 'message/externallib.php',
         'description' => 'Unblocks a user',
-        'type' => 'write',
-        'ajax' => true,
-        'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
-    ),
-    'core_message_unblock_contacts' => array(
-        'classname' => 'core_message_external',
-        'methodname' => 'unblock_contacts',
-        'classpath' => 'message/externallib.php',
-        'description' => '** DEPRECATED ** Please do not call this function any more.
-                         Unblock contacts',
         'type' => 'write',
         'ajax' => true,
         'services' => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
@@ -1532,6 +1537,14 @@ $functions = array(
         'classname' => 'core\output\external',
         'methodname' => 'load_fontawesome_icon_map',
         'description' => 'Load the mapping of names to icons',
+        'type' => 'read',
+        'loginrequired' => false,
+        'ajax' => true,
+    ),
+    'core_output_load_fontawesome_icon_system_map' => array(
+        'classname' => 'core\external\output\icon_system\load_fontawesome_map',
+        'methodname' => 'execute',
+        'description' => 'Load the mapping of moodle pix names to fontawesome icon names',
         'type' => 'read',
         'loginrequired' => false,
         'ajax' => true,
@@ -2596,6 +2609,16 @@ $functions = array(
         'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
     ),
 
+    'core_block_fetch_addable_blocks' => array(
+        'classname'     => 'core_block\external\fetch_addable_blocks',
+        'methodname'    => 'execute',
+        'description'   => 'Returns all addable blocks in a given page.',
+        'type'          => 'read',
+        'capabilities'  => 'moodle/site:manageblocks',
+        'ajax'          => true,
+        'services'      => array(MOODLE_OFFICIAL_MOBILE_SERVICE),
+    ),
+
     // Filters functions.
     'core_filters_get_available_in_context' => array(
         'classname'   => 'core_filters\external',
@@ -2651,7 +2674,69 @@ $functions = array(
         'description' => 'Drag and drop categories',
         'type'        => 'write',
         'ajax'        => 'true'
-    )
+    ),
+    'core_h5p_get_trusted_h5p_file' => [
+        'classname'     => 'core_h5p\external',
+        'methodname'    => 'get_trusted_h5p_file',
+        'classpath'     => '',
+        'description'   => 'Get the H5P file cleaned for Mobile App.',
+        'type'          => 'read',
+        'ajax'          => 'true',
+        'capabilities'  => '',
+        'services'      => [MOODLE_OFFICIAL_MOBILE_SERVICE],
+    ],
+    'core_table_get_dynamic_table_content' => [
+        'classname' => 'core_table\external\dynamic\get',
+        'methodname' => 'execute',
+        'description' => 'Get the dynamic table content raw html',
+        'type' => 'read',
+        'ajax' => true,
+        'services' => [MOODLE_OFFICIAL_MOBILE_SERVICE],
+    ],
+    'core_xapi_statement_post' => [
+        'classname'     => 'core_xapi\external\post_statement',
+        'methodname'    => 'execute',
+        'classpath'     => '',
+        'description'   => 'Post an xAPI statement.',
+        'type'          => 'write',
+        'ajax'          => 'true',
+        'capabilities'  => '',
+        'services'      => [MOODLE_OFFICIAL_MOBILE_SERVICE],
+    ],
+    'core_contentbank_delete_content' => [
+        'classname'     => 'core_contentbank\external\delete_content',
+        'methodname'    => 'execute',
+        'classpath'     => '',
+        'description'   => 'Delete a content from the content bank.',
+        'type'          => 'write',
+        'ajax'          => 'true',
+        'capabilities'  => 'moodle/contentbank:deleteanycontent',
+    ],
+    'core_contentbank_rename_content' => [
+        'classname'     => 'core_contentbank\external\rename_content',
+        'methodname'    => 'execute',
+        'classpath'     => '',
+        'description'   => 'Rename a content in the content bank.',
+        'type'          => 'write',
+        'ajax'          => 'true',
+        'capabilities'  => 'moodle/contentbank:manageowncontent',
+    ],
+    'core_create_userfeedback_action_record' => [
+        'classname'     => 'core\external\record_userfeedback_action',
+        'methodname'    => 'execute',
+        'classpath'     => '',
+        'description'   => 'Record the action that the user takes in the user feedback notification for future use.',
+        'type'          => 'write',
+        'ajax'          => 'true',
+        'capabilities'  => '',
+    ],
+    'core_payment_get_available_gateways' => [
+        'classname'   => 'core_payment\external\get_available_gateways',
+        'methodname'  => 'execute',
+        'description' => 'Get the list of payment gateways that support the given component/area',
+        'type'        => 'read',
+        'ajax'        => true,
+    ],
 );
 
 $services = array(

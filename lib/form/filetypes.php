@@ -221,6 +221,8 @@ class MoodleQuickForm_filetypes extends MoodleQuickForm_group {
      */
     public function validateSubmitValue($value) {
 
+        $value = $value ?? ['filetypes' => null]; // A null $value can arrive here. Coalesce, creating the default array.
+
         if (!$this->allowall) {
             // Assert that there is an actual list provided.
             $normalized = $this->util->normalize_file_types($value['filetypes']);
@@ -240,10 +242,10 @@ class MoodleQuickForm_filetypes extends MoodleQuickForm_group {
 
         if ($this->onlytypes) {
             // Assert that all file types are allowed here.
-            $notwhitelisted = $this->util->get_not_whitelisted($value['filetypes'], $this->onlytypes);
+            $notlisted = $this->util->get_not_listed($value['filetypes'], $this->onlytypes);
 
-            if ($notwhitelisted) {
-                return get_string('filetypesnotwhitelisted', 'core_form', implode(', ', $notwhitelisted));
+            if ($notlisted) {
+                return get_string('filetypesnotallowed', 'core_form', implode(', ', $notlisted));
             }
         }
 

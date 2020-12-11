@@ -160,6 +160,7 @@ $CFG->lang                 = $config->lang;
 $CFG->dirroot              = __DIR__;
 $CFG->libdir               = "$CFG->dirroot/lib";
 $CFG->wwwroot              = install_guess_wwwroot(); // can not be changed - ppl must use the real address when installing
+$CFG->httpswwwroot         = $CFG->wwwroot;
 $CFG->dataroot             = $config->dataroot;
 $CFG->tempdir              = $CFG->dataroot.'/temp';
 $CFG->backuptempdir        = $CFG->tempdir.'/backup';
@@ -492,6 +493,7 @@ if ($config->stage == INSTALL_DATABASETYPE) {
                                   get_string('databasetypesub', 'install'));
 
     $databases = array('mysqli' => moodle_database::get_driver_instance('mysqli', 'native'),
+                       'auroramysql' => moodle_database::get_driver_instance('auroramysql', 'native'),
                        'mariadb'=> moodle_database::get_driver_instance('mariadb', 'native'),
                        'pgsql'  => moodle_database::get_driver_instance('pgsql',  'native'),
                        'oci'    => moodle_database::get_driver_instance('oci',    'native'),

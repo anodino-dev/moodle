@@ -40,7 +40,7 @@ class core_rsslib_testcase extends advanced_testcase {
     // The number of seconds tests should wait for the server to respond (high to prevent false positives).
     const TIMEOUT = 10;
 
-    protected function setUp() {
+    protected function setUp(): void {
         moodle_simplepie::reset_cache();
     }
 
@@ -118,11 +118,15 @@ EOD;
         $oldproxy = $CFG->proxyhost;
         $CFG->proxyhost = 'xxxxxxxxxxxxxxx.moodle.org';
 
+        $oldproxybypass = $CFG->proxybypass; // Ensure we don't get locally served extests bypassing the proxy.
+        $CFG->proxybypass = '';
+
         $feed = new moodle_simplepie($this->getExternalTestFileUrl('/rsstest.xml'));
 
         $this->assertNotEmpty($feed->error());
         $this->assertEmpty($feed->get_title());
         $CFG->proxyhost = $oldproxy;
+        $CFG->proxybypass = $oldproxybypass;
     }
 
     /*

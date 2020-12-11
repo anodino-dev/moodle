@@ -1639,6 +1639,7 @@ function download_file_content($url, $headers=null, $postdata=null, $fullrespons
  *     commonly used in moodle the following groups:
  *       - web_image - image that can be included as <img> in HTML
  *       - image - image that we can parse using GD to find it's dimensions, also used for portfolio format
+ *       - optimised_image - image that will be processed and optimised
  *       - video - file that can be imported as video in text editor
  *       - audio - file that can be imported as audio in text editor
  *       - archive - we can extract files from this archive
@@ -2169,7 +2170,7 @@ function readfile_accel($file, $mimetype, $accelerate) {
         if (is_object($file)) {
             $fs = get_file_storage();
             if ($fs->supports_xsendfile()) {
-                if ($fs->xsendfile($file->get_contenthash())) {
+                if ($fs->xsendfile_file($file)) {
                     return;
                 }
             }
@@ -2219,22 +2220,38 @@ function readfile_accel($file, $mimetype, $accelerate) {
             if ($ranges) {
                 if (is_object($file)) {
                     $handle = $file->get_content_file_handle();
+                    if ($handle === false) {
+                        throw new file_exception('storedfilecannotreadfile', $file->get_filename());
+                    }
                 } else {
                     $handle = fopen($file, 'rb');
+                    if ($handle === false) {
+                        throw new file_exception('cannotopenfile', $file);
+                    }
                 }
                 byteserving_send_file($handle, $mimetype, $ranges, $filesize);
             }
         }
     }
 
-    header('Content-Length: '.$filesize);
+    header('Content-Length: ' . $filesize);
 
-    if ($filesize > 10000000) {
-        // for large files try to flush and close all buffers to conserve memory
-        while(@ob_get_level()) {
-            if (!@ob_end_flush()) {
-                break;
+    if (!empty($_SERVER['REQUEST_METHOD']) and $_SERVER['REQUEST_METHOD'] === 'HEAD') {
+        exit;
+    }
+
+    while (ob_get_level()) {
+        $handlerstack = ob_list_handlers();
+        $activehandler = array_pop($handlerstack);
+        if ($activehandler === 'default output handler') {
+            // We do not expect any content in the buffer when we are serving files.
+            $buffercontents = ob_get_clean();
+            if ($buffercontents !== '') {
+                error_log('Non-empty default output handler buffer detected while serving the file ' . $file);
             }
+        } else {
+            // Some handlers such as zlib output compression may have file signature buffered - flush it.
+            ob_end_flush();
         }
     }
 
@@ -2242,7 +2259,9 @@ function readfile_accel($file, $mimetype, $accelerate) {
     if (is_object($file)) {
         $file->readfile();
     } else {
-        readfile_allow_large($file, $filesize);
+        if (readfile_allow_large($file, $filesize) === false) {
+            throw new file_exception('cannotopenfile', $file);
+        }
     }
 }
 
@@ -2298,6 +2317,9 @@ function send_temp_file($path, $filename, $pathisstring=false) {
     if (core_useragent::is_ie() || core_useragent::is_edge()) {
         $filename = urlencode($filename);
     }
+
+    // If this file was requested from a form, then mark download as complete.
+    \core_form\util::form_download_complete();
 
     header('Content-Disposition: attachment; filename="'.$filename.'"');
     if (is_https()) { // HTTPS sites - watch out for IE! KB812935 and KB316431.
@@ -2450,6 +2472,9 @@ function send_file($path, $filename, $lifetime = null , $filter=0, $pathisstring
 
     if ($forcedownload) {
         header('Content-Disposition: attachment; filename="'.$filename.'"');
+
+        // If this file was requested from a form, then mark download as complete.
+        \core_form\util::form_download_complete();
     } else if ($mimetype !== 'application/x-shockwave-flash') {
         // If this is an swf don't pass content-disposition with filename as this makes the flash player treat the file
         // as an upload and enforces security that may prevent the file from being loaded.
@@ -2997,7 +3022,7 @@ class curl {
     private $cookie   = false;
     /** @var bool tracks multiple headers in response - redirect detection */
     private $responsefinished = false;
-    /** @var security helper class, responsible for checking host/ports against blacklist/whitelist entries.*/
+    /** @var security helper class, responsible for checking host/ports against allowed/blocked entries.*/
     private $securityhelper;
     /** @var bool ignoresecurity a flag which can be supplied to the constructor, allowing security to be bypassed. */
     private $ignoresecurity;
@@ -3550,7 +3575,7 @@ class curl {
      * @return bool
      */
     protected function request($url, $options = array()) {
-        // Reset here so that the data is valid when result returned from cache, or if we return due to a blacklist hit.
+        // Reset here so that the data is valid when result returned from cache, or if we return due to a blocked URL hit.
         $this->reset_request_state_vars();
 
         if ((defined('PHPUNIT_TEST') && PHPUNIT_TEST)) {
@@ -3560,8 +3585,8 @@ class curl {
             }
         }
 
-        // If curl security is enabled, check the URL against the blacklist before calling curl_exec.
-        // Note: This will only check the base url. In the case of redirects, the blacklist is also after the curl_exec.
+        // If curl security is enabled, check the URL against the list of blocked URLs before calling curl_exec.
+        // Note: This will only check the base url. In the case of redirects, the blocking check is also after the curl_exec.
         if (!$this->ignoresecurity && $this->securityhelper->url_is_blocked($url)) {
             $this->error = $this->securityhelper->get_blocked_url_string();
             return $this->error;
@@ -3584,7 +3609,7 @@ class curl {
         $this->errno = curl_errno($curl);
         // Note: $this->response and $this->rawresponse are filled by $hits->formatHeader callback.
 
-        // In the case of redirects (which curl blindly follows), check the post-redirect URL against the blacklist entries too.
+        // In the case of redirects (which curl blindly follows), check the post-redirect URL against the list of blocked list too.
         if (intval($this->info['redirect_count']) > 0 && !$this->ignoresecurity
             && $this->securityhelper->url_is_blocked($this->info['url'])) {
             $this->reset_request_state_vars();
@@ -4887,8 +4912,29 @@ function file_pluginfile($relativepath, $forcedownload, $preview = null, $offlin
             \core\session\manager::write_close(); // Unlock session during file serving.
             send_stored_file($file, 60*60, 0, $forcedownload, $sendfileoptions);
         }
+    } else if ($component === 'contentbank') {
+        if ($filearea != 'public' || isguestuser()) {
+            send_file_not_found();
+        }
 
-        // ========================================================================================================================
+        if ($context->contextlevel == CONTEXT_SYSTEM || $context->contextlevel == CONTEXT_COURSECAT) {
+            require_login();
+        } else if ($context->contextlevel == CONTEXT_COURSE) {
+            require_login($course);
+        } else {
+            send_file_not_found();
+        }
+
+        $itemid = (int)array_shift($args);
+        $filename = array_pop($args);
+        $filepath = $args ? '/'.implode('/', $args).'/' : '/';
+        if (!$file = $fs->get_file($context->id, $component, $filearea, $itemid, $filepath, $filename) or
+            $file->is_directory()) {
+            send_file_not_found();
+        }
+
+        \core\session\manager::write_close(); // Unlock session during file serving.
+        send_stored_file($file, 0, 0, true, $sendfileoptions); // must force download - security!
     } else if (strpos($component, 'mod_') === 0) {
         $modname = substr($component, 4);
         if (!file_exists("$CFG->dirroot/mod/$modname/lib.php")) {

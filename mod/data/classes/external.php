@@ -125,7 +125,9 @@ class mod_data_external extends external_api {
                     }
                 }
                 $exporter = new database_summary_exporter($database, array('context' => $context));
-                $arrdatabases[] = $exporter->export($PAGE->get_renderer('core'));
+                $data = $exporter->export($PAGE->get_renderer('core'));
+                $data->name = external_format_string($data->name, $context);
+                $arrdatabases[] = $data;
             }
         }
 
@@ -264,6 +266,7 @@ class mod_data_external extends external_api {
             'warnings' => $warnings
         );
 
+        $groupmode = groups_get_activity_groupmode($cm);
         if (!empty($params['groupid'])) {
             $groupid = $params['groupid'];
             // Determine is the group is visible to user.
@@ -272,7 +275,6 @@ class mod_data_external extends external_api {
             }
         } else {
             // Check to see if groups are being used here.
-            $groupmode = groups_get_activity_groupmode($cm);
             if ($groupmode) {
                 $groupid = groups_get_activity_group($cm);
             } else {
@@ -979,10 +981,10 @@ class mod_data_external extends external_api {
         // Check database is open in time.
         data_require_time_available($database, null, $context);
 
+        $groupmode = groups_get_activity_groupmode($cm);
         // Determine default group.
         if (empty($params['groupid'])) {
             // Check to see if groups are being used here.
-            $groupmode = groups_get_activity_groupmode($cm);
             if ($groupmode) {
                 $groupid = groups_get_activity_group($cm);
             } else {

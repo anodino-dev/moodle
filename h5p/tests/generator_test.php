@@ -25,6 +25,8 @@
 
 namespace core_h5p;
 
+use core_h5p\local\library\autoloader;
+
 defined('MOODLE_INTERNAL') || die();
 
 /**
@@ -34,8 +36,18 @@ defined('MOODLE_INTERNAL') || die();
 * @category   test
 * @copyright  2019 Mihail Geshoski <mihail@moodle.com>
 * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+* @runTestsInSeparateProcesses
 */
 class generator_testcase extends \advanced_testcase {
+
+    /**
+     * Tests set up.
+     */
+    protected function setUp(): void {
+        parent::setUp();
+
+        autoloader::register();
+    }
 
     /**
      * Test the returned data of generate_h5p_data() when the method is called without requesting
@@ -215,7 +227,9 @@ class generator_testcase extends \advanced_testcase {
 
         $generator = $this->getDataGenerator()->get_plugin_generator('core_h5p');
 
-        $data = $generator->create_library_record('Library', 'Lib', 1, 2, 3, 'Semantics example', '/regex11/');
+        $data = $generator->create_library_record(
+            'Library', 'Lib', 1, 2, 3, 'Semantics example', '/regex11/', 'http://tutorial.org/', 'http://example.org/'
+        );
         unset($data->id);
 
         $expected = (object) [
@@ -231,7 +245,12 @@ class generator_testcase extends \advanced_testcase {
             'preloadedcss' => 'css/example.css',
             'droplibrarycss' => '',
             'semantics' => 'Semantics example',
-            'addto' => '/regex11/'
+            'addto' => '/regex11/',
+            'tutorial' => 'http://tutorial.org/',
+            'example' => 'http://example.org/',
+            'coremajor' => null,
+            'coreminor' => null,
+            'metadatasettings' => null,
         ];
 
         $this->assertEquals($expected, $data);
@@ -472,6 +491,80 @@ class generator_testcase extends \advanced_testcase {
                     'requiredlibraryid' => '1',
                     'dependencytype' => 'preloaded'
                 )
+            ]
+        ];
+    }
+
+    /**
+     * Test the behaviour of create_content_file(). Test whether a file belonging to a content is created.
+     *
+     * @dataProvider test_create_content_file_provider
+     * @param array $filedata Data from the file to be created.
+     * @param array $expecteddata Data expected.Data from the file to be created.
+     */
+    public function test_create_content_file($filedata, $expecteddata): void {
+        $this->resetAfterTest();
+
+        $generator = self::getDataGenerator()->get_plugin_generator('core_h5p');
+
+        if ($expecteddata[1] === 'exception') {
+            $this->expectException('coding_exception');
+        }
+        call_user_func_array([$generator, 'create_content_file'], $filedata);
+
+        $systemcontext = \context_system::instance();
+        $filearea = $filedata[1];
+        $filepath = '/'. dirname($filedata[0]). '/';
+        $filename = basename($filedata[0]);
+        $itemid = $expecteddata[0];
+
+        $fs = new \file_storage();
+        $exists = $fs->file_exists($systemcontext->id, file_storage::COMPONENT, $filearea, $itemid, $filepath,
+            $filename);
+        if ($expecteddata[1] === true) {
+            $this->assertTrue($exists);
+        } else if ($expecteddata[1] === false) {
+            $this->assertFalse($exists);
+        }
+    }
+
+    /**
+     * Data provider for test_create_content_file(). Data from different files to be created.
+     *
+     * @return array
+     **/
+    public function test_create_content_file_provider(): array {
+        return [
+            'Create file in content with id 4' => [
+                [
+                    'images/img1.png',
+                    'content',
+                    4
+                ],
+                [
+                    4,
+                    true
+                ]
+            ],
+            'Create file in the editor' => [
+                [
+                    'images/img1.png',
+                    'editor'
+                ],
+                [
+                    0,
+                    true
+                ]
+            ],
+            'Create file in content without id' => [
+                [
+                    'images/img1.png',
+                    'content'
+                ],
+                [
+                    0,
+                    'exception'
+                ]
             ]
         ];
     }

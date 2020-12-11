@@ -25,7 +25,7 @@
 
 namespace core_h5p;
 
-defined('MOODLE_INTERNAL') || die();
+use core_collator;
 
 /**
  *
@@ -34,6 +34,7 @@ defined('MOODLE_INTERNAL') || die();
  * @package    core_h5p
  * @copyright  2019 Mihail Geshoski <mihail@moodle.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @runTestsInSeparateProcesses
  */
 class framework_testcase extends \advanced_testcase {
 
@@ -43,7 +44,7 @@ class framework_testcase extends \advanced_testcase {
     /**
      * Set up function for tests.
      */
-    public function setUp() {
+    public function setUp(): void {
         $factory = new \core_h5p\factory();
         $this->framework = $factory->get_framework();
     }
@@ -67,12 +68,22 @@ class framework_testcase extends \advanced_testcase {
 
     /**
      * Test the behaviour of fetchExternalData() when the store path is not defined.
+     *
+     * This test is intensive and requires downloading content of an external file,
+     * therefore it might take longer time to execute.
+     * In order to execute this test PHPUNIT_LONGTEST should be set to true in phpunit.xml or directly in config.php.
      */
     public function test_fetchExternalData_no_path_defined() {
+
+        if (!PHPUNIT_LONGTEST) {
+            $this->markTestSkipped('PHPUNIT_LONGTEST is not defined');
+        }
+
         $this->resetAfterTest();
 
+        $library = 'H5P.Accordion';
         // Provide a valid URL to an external H5P content.
-        $url = "https://h5p.org/sites/default/files/h5p/exports/arithmetic-quiz-22-57860.h5p";
+        $url = $this->getExternalTestFileUrl('/'.$library.'.h5p');
 
         // Test fetching an external H5P content without defining a path to where the file should be stored.
         $data = $this->framework->fetchExternalData($url, null, true);
@@ -88,14 +99,23 @@ class framework_testcase extends \advanced_testcase {
 
     /**
      * Test the behaviour of fetchExternalData() when the store path is defined.
+     *
+     * This test is intensive and requires downloading content of an external file,
+     * therefore it might take longer time to execute.
+     * In order to execute this test PHPUNIT_LONGTEST should be set to true in phpunit.xml or directly in config.php.
      */
     public function test_fetchExternalData_path_defined() {
         global $CFG;
 
+        if (!PHPUNIT_LONGTEST) {
+            $this->markTestSkipped('PHPUNIT_LONGTEST is not defined');
+        }
+
         $this->resetAfterTest();
 
+        $library = 'H5P.Accordion';
         // Provide a valid URL to an external H5P content.
-        $url = "https://h5p.org/sites/default/files/h5p/exports/arithmetic-quiz-22-57860.h5p";
+        $url = $this->getExternalTestFileUrl('/'.$library.'.h5p');
 
         $h5pfolderpath = $CFG->tempdir . uniqid('/h5p-');
 
@@ -112,12 +132,22 @@ class framework_testcase extends \advanced_testcase {
     /**
      * Test the behaviour of fetchExternalData() when the URL is pointing to an external file that is
      * not an h5p content.
+     *
+     * This test is intensive and requires downloading content of an external file,
+     * therefore it might take longer time to execute.
+     * In order to execute this test PHPUNIT_LONGTEST should be set to true in phpunit.xml or directly in config.php.
      */
     public function test_fetchExternalData_url_not_h5p() {
+
+        if (!PHPUNIT_LONGTEST) {
+            // This test is intensive and requires downloading the content of an external file.
+            $this->markTestSkipped('PHPUNIT_LONGTEST is not defined');
+        }
+
         $this->resetAfterTest();
 
         // Provide an URL to an external file that is not an H5P content file.
-        $url = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+        $url = $this->getExternalTestFileUrl('/h5pcontenttypes.json');
 
         $data = $this->framework->fetchExternalData($url, null, true);
 
@@ -128,7 +158,7 @@ class framework_testcase extends \advanced_testcase {
         // The uploaded file should exist on the filesystem with it's original extension.
         // NOTE: The file would be later validated by the H5P Validator.
         $h5pfolderpath = $this->framework->getUploadedH5pFolderPath();
-        $this->assertTrue(file_exists($h5pfolderpath . '.pdf'));
+        $this->assertTrue(file_exists($h5pfolderpath . '.json'));
     }
 
     /**
@@ -142,6 +172,55 @@ class framework_testcase extends \advanced_testcase {
 
         // The response should be empty.
         $this->assertEmpty($data);
+    }
+
+    /**
+     * Test the behaviour of setLibraryTutorialUrl().
+     */
+    public function test_setLibraryTutorialUrl() {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $generator = $this->getDataGenerator()->get_plugin_generator('core_h5p');
+
+        // Create several libraries records.
+        $lib1 = $generator->create_library_record('Library1', 'Lib1', 1, 0, 1, '', null, 'http://tutorial1.org',
+            'http://example.org');
+        $lib2 = $generator->create_library_record('Library2', 'Lib2', 2, 0, 1, '', null, 'http://tutorial2.org');
+        $lib3 = $generator->create_library_record('Library3', 'Lib3', 3, 0);
+
+        // Check only lib1 tutorial URL is updated.
+        $url = 'https://newtutorial.cat';
+        $this->framework->setLibraryTutorialUrl($lib1->machinename, $url);
+
+        $libraries = $DB->get_records('h5p_libraries');
+        $this->assertEquals($libraries[$lib1->id]->tutorial, $url);
+        $this->assertNotEquals($libraries[$lib2->id]->tutorial, $url);
+
+        // Check lib1 tutorial URL is set to null.
+        $this->framework->setLibraryTutorialUrl($lib1->machinename, null);
+
+        $libraries = $DB->get_records('h5p_libraries');
+        $this->assertCount(3, $libraries);
+        $this->assertNull($libraries[$lib1->id]->tutorial);
+
+        // Check no tutorial URL is set if library name doesn't exist.
+        $this->framework->setLibraryTutorialUrl('Unexisting library', $url);
+
+        $libraries = $DB->get_records('h5p_libraries');
+        $this->assertCount(3, $libraries);
+        $this->assertNull($libraries[$lib1->id]->tutorial);
+        $this->assertEquals($libraries[$lib2->id]->tutorial, 'http://tutorial2.org');
+        $this->assertNull($libraries[$lib3->id]->tutorial);
+
+        // Check tutorial is set as expected when it was null.
+        $this->framework->setLibraryTutorialUrl($lib3->machinename, $url);
+
+        $libraries = $DB->get_records('h5p_libraries');
+        $this->assertEquals($libraries[$lib3->id]->tutorial, $url);
+        $this->assertNull($libraries[$lib1->id]->tutorial);
+        $this->assertEquals($libraries[$lib2->id]->tutorial, 'http://tutorial2.org');
     }
 
     /**
@@ -442,15 +521,19 @@ class framework_testcase extends \advanced_testcase {
         // The addons array should return 2 results (Library and Library1 addon).
         $this->assertCount(2, $addons);
 
+        // Ensure the addons array is consistently ordered before asserting their contents.
+        core_collator::asort_array_of_arrays_by_key($addons, 'machineName');
+        [$addonone, $addontwo] = array_values($addons);
+
         // Make sure the version 1.3 is the latest 'Library' addon version.
-        $this->assertEquals('Library', $addons[0]['machineName']);
-        $this->assertEquals(1, $addons[0]['majorVersion']);
-        $this->assertEquals(3, $addons[0]['minorVersion']);
+        $this->assertEquals('Library', $addonone['machineName']);
+        $this->assertEquals(1, $addonone['majorVersion']);
+        $this->assertEquals(3, $addonone['minorVersion']);
 
         // Make sure the version 1.2 is the latest 'Library1' addon version.
-        $this->assertEquals('Library1', $addons[1]['machineName']);
-        $this->assertEquals(1, $addons[1]['majorVersion']);
-        $this->assertEquals(2, $addons[1]['minorVersion']);
+        $this->assertEquals('Library1', $addontwo['machineName']);
+        $this->assertEquals(1, $addontwo['majorVersion']);
+        $this->assertEquals(2, $addontwo['minorVersion']);
     }
 
     /**
@@ -474,7 +557,6 @@ class framework_testcase extends \advanced_testcase {
         $this->assertEquals('1', $libraries['MainLibrary'][0]->major_version);
         $this->assertEquals('0', $libraries['MainLibrary'][0]->minor_version);
         $this->assertEquals('1', $libraries['MainLibrary'][0]->patch_version);
-        $this->assertEquals('MainLibrary', $libraries['MainLibrary'][0]->machine_name);
     }
 
     /**
@@ -702,10 +784,107 @@ class framework_testcase extends \advanced_testcase {
     /**
      * Test the behaviour of mayUpdateLibraries().
      */
-    public function test_mayUpdateLibraries() {
-        $mayupdatelib = $this->framework->mayUpdateLibraries();
+    public function test_mayUpdateLibraries(): void {
+        global $DB;
 
+        $this->resetAfterTest();
+
+        // Create some users.
+        $contextsys = \context_system::instance();
+        $user = $this->getDataGenerator()->create_user();
+        $admin = get_admin();
+        $managerrole = $DB->get_record('role', ['shortname' => 'manager'], '*', MUST_EXIST);
+        $studentrole = $DB->get_record('role', ['shortname' => 'student'], '*', MUST_EXIST);
+        $manager = $this->getDataGenerator()->create_user();
+        role_assign($managerrole->id, $manager->id, $contextsys);
+
+        // Create a course with a label and enrol the user.
+        $course = $this->getDataGenerator()->create_course();
+        $label = $this->getDataGenerator()->create_module('label', ['course' => $course->id]);
+        list(, $labelcm) = get_course_and_cm_from_instance($label->id, 'label');
+        $contextlabel = \context_module::instance($labelcm->id);
+        $this->getDataGenerator()->enrol_user($user->id, $course->id, 'student');
+
+        // Create the .h5p file.
+        $path = __DIR__ . '/fixtures/h5ptest.zip';
+
+        // Admin and manager should have permission to update libraries.
+        $file = helper::create_fake_stored_file_from_path($path, $admin->id, $contextsys);
+        $this->framework->set_file($file);
+        $mayupdatelib = $this->framework->mayUpdateLibraries();
         $this->assertTrue($mayupdatelib);
+
+        $file = helper::create_fake_stored_file_from_path($path, $manager->id, $contextsys);
+        $this->framework->set_file($file);
+        $mayupdatelib = $this->framework->mayUpdateLibraries();
+        $this->assertTrue($mayupdatelib);
+
+        // By default, normal user hasn't permission to update libraries (in both contexts, system and module label).
+        $file = helper::create_fake_stored_file_from_path($path, $user->id, $contextsys);
+        $this->framework->set_file($file);
+        $mayupdatelib = $this->framework->mayUpdateLibraries();
+        $this->assertFalse($mayupdatelib);
+
+        $file = helper::create_fake_stored_file_from_path($path, $user->id, $contextlabel);
+        $this->framework->set_file($file);
+        $mayupdatelib = $this->framework->mayUpdateLibraries();
+        $this->assertFalse($mayupdatelib);
+
+        // If the current user (admin) can update libraries, the method should return true (even if the file userid hasn't the
+        // required capabilility in the file context).
+        $file = helper::create_fake_stored_file_from_path($path, $admin->id, $contextlabel);
+        $this->framework->set_file($file);
+        $mayupdatelib = $this->framework->mayUpdateLibraries();
+        $this->assertTrue($mayupdatelib);
+
+        // If the update capability is assigned to the user, they should be able to update the libraries (only in the context
+        // where the capability has been assigned).
+        $file = helper::create_fake_stored_file_from_path($path, $user->id, $contextlabel);
+        $this->framework->set_file($file);
+        $mayupdatelib = $this->framework->mayUpdateLibraries();
+        $this->assertFalse($mayupdatelib);
+        assign_capability('moodle/h5p:updatelibraries', CAP_ALLOW, $studentrole->id, $contextlabel);
+        $mayupdatelib = $this->framework->mayUpdateLibraries();
+        $this->assertTrue($mayupdatelib);
+        $file = helper::create_fake_stored_file_from_path($path, $user->id, $contextsys);
+        $this->framework->set_file($file);
+        $mayupdatelib = $this->framework->mayUpdateLibraries();
+        $this->assertFalse($mayupdatelib);
+    }
+
+    /**
+     * Test the behaviour of get_file() and set_file().
+     */
+    public function test_get_file(): void {
+        $this->resetAfterTest();
+
+        // Create some users.
+        $contextsys = \context_system::instance();
+        $user = $this->getDataGenerator()->create_user();
+
+        // The H5P file.
+        $path = __DIR__ . '/fixtures/h5ptest.zip';
+
+        // An error should be raised when it's called before initialitzing it.
+        $this->expectException('coding_exception');
+        $this->expectExceptionMessage('Using get_file() before file is set');
+        $this->framework->get_file();
+
+        // Check the value when only path and user are set.
+        $file = helper::create_fake_stored_file_from_path($path, $user->id);
+        $this->framework->set_file($file);
+        $file = $this->framework->get_file();
+        $this->assertEquals($user->id, $$file->get_userid());
+        $this->assertEquals($contextsys->id, $file->get_contextid());
+
+        // Check the value when also the context is set.
+        $course = $this->getDataGenerator()->create_course();
+        $contextcourse = \context_course::instance($course->id);
+        $file = helper::create_fake_stored_file_from_path($path, $user->id, $contextcourse);
+        $this->framework->set_file($file);
+        $file = $this->framework->get_file();
+        $this->assertEquals($user->id, $$file->get_userid());
+        $this->assertEquals($contextcourse->id, $file->get_contextid());
     }
 
     /**
@@ -843,6 +1022,41 @@ class framework_testcase extends \advanced_testcase {
         $this->assertEquals($content['params'], $dbcontent->jsoncontent);
         $this->assertEquals($content['library']['libraryId'], $dbcontent->mainlibraryid);
         $this->assertEquals($content['disable'], $dbcontent->displayoptions);
+    }
+
+    /**
+     * Test the behaviour of insertContent().
+     */
+    public function test_insertContent_latestlibrary() {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $generator = $this->getDataGenerator()->get_plugin_generator('core_h5p');
+        // Create a library record.
+        $lib = $generator->create_library_record('TestLibrary', 'Test', 1, 1, 2);
+
+        $content = array(
+            'params' => json_encode(['param1' => 'Test']),
+            'library' => array(
+                'libraryId' => 0,
+                'machineName' => 'TestLibrary',
+            ),
+            'disable' => 8
+        );
+
+        // Insert h5p content.
+        $contentid = $this->framework->insertContent($content);
+
+        // Get the entered content from the db.
+        $dbcontent = $DB->get_record('h5p', ['id' => $contentid]);
+
+        // Make sure the h5p content was properly inserted.
+        $this->assertNotEmpty($dbcontent);
+        $this->assertEquals($content['params'], $dbcontent->jsoncontent);
+        $this->assertEquals($content['disable'], $dbcontent->displayoptions);
+        // As the libraryId was empty, the latest library has been used.
+        $this->assertEquals($lib->id, $dbcontent->mainlibraryid);
     }
 
     /**
@@ -1295,8 +1509,8 @@ class framework_testcase extends \advanced_testcase {
         // Get the semantics of 'Library1' from the DB.
         $currentsemantics = $DB->get_field('h5p_libraries', 'semantics', array('id' => $library1->id));
 
-        // The semantics for Library1 should be successfully updated.
-        $this->assertEquals(json_encode($updatedsemantics), $currentsemantics);
+        // The semantics for Library1 shouldn't be updated.
+        $this->assertEquals($semantics, $currentsemantics);
     }
 
     /**
@@ -1447,8 +1661,16 @@ class framework_testcase extends \advanced_testcase {
             'libraryMinorVersion' => $mainlibrary->minorversion,
             'libraryEmbedTypes' => $mainlibrary->embedtypes,
             'libraryFullscreen' => $mainlibrary->fullscreen,
-            'metadata' => ''
+            'metadata' => '',
+            'pathnamehash' => $h5p->pathnamehash
         );
+
+        $params = json_decode($h5p->jsoncontent);
+        if (empty($params->metadata)) {
+            $params->metadata = new \stdClass();
+        }
+        $expected['metadata'] = $params->metadata;
+        $expected['params'] = json_encode($params->params ?? $params);
 
         // The returned content should match the expected array.
         $this->assertEquals($expected, $content);
@@ -1575,6 +1797,57 @@ class framework_testcase extends \advanced_testcase {
         // The loaded content dependencies should now return 1 library.
         $this->assertCount(1, $dynamicdependencies);
         $this->assertEquals($expected, $dynamicdependencies);
+    }
+
+    /**
+     * Test the behaviour of getOption().
+     */
+    public function test_getOption(): void {
+        $this->resetAfterTest();
+
+        // Get value for display_option_download.
+        $value = $this->framework->getOption(\H5PCore::DISPLAY_OPTION_DOWNLOAD);
+        $expected = \H5PDisplayOptionBehaviour::CONTROLLED_BY_AUTHOR_DEFAULT_OFF;
+        $this->assertEquals($expected, $value);
+
+        // Get value for display_option_embed using default value (it should be ignored).
+        $value = $this->framework->getOption(\H5PCore::DISPLAY_OPTION_EMBED, \H5PDisplayOptionBehaviour::NEVER_SHOW);
+        $expected = \H5PDisplayOptionBehaviour::CONTROLLED_BY_AUTHOR_DEFAULT_OFF;
+        $this->assertEquals($expected, $value);
+
+        // Get value for unexisting setting without default.
+        $value = $this->framework->getOption('unexistingsetting');
+        $expected = false;
+        $this->assertEquals($expected, $value);
+
+        // Get value for unexisting setting with default.
+        $value = $this->framework->getOption('unexistingsetting', 'defaultvalue');
+        $expected = 'defaultvalue';
+        $this->assertEquals($expected, $value);
+    }
+
+    /**
+     * Test the behaviour of setOption().
+     */
+    public function test_setOption(): void {
+        $this->resetAfterTest();
+
+        // Set value for 'newsetting' setting.
+        $name = 'newsetting';
+        $value = $this->framework->getOption($name);
+        $this->assertEquals(false, $value);
+        $newvalue = 'value1';
+        $this->framework->setOption($name, $newvalue);
+        $value = $this->framework->getOption($name);
+        $this->assertEquals($newvalue, $value);
+
+        // Set value for display_option_download and then get it again. Check it hasn't changed.
+        $name = \H5PCore::DISPLAY_OPTION_DOWNLOAD;
+        $newvalue = \H5PDisplayOptionBehaviour::NEVER_SHOW;
+        $this->framework->setOption($name, $newvalue);
+        $value = $this->framework->getOption($name);
+        $expected = \H5PDisplayOptionBehaviour::CONTROLLED_BY_AUTHOR_DEFAULT_OFF;
+        $this->assertEquals($expected, $value);
     }
 
     /**
@@ -2013,5 +2286,49 @@ class framework_testcase extends \advanced_testcase {
                 false,
             ]
         ];
+    }
+
+
+    /**
+     * Test the behaviour of get_latest_library_version().
+     */
+    public function test_get_latest_library_version() {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $generator = $this->getDataGenerator()->get_plugin_generator('core_h5p');
+        // Create a library record.
+        $machinename = 'TestLibrary';
+        $lib1 = $generator->create_library_record($machinename, 'Test', 1, 1, 2);
+        $lib2 = $generator->create_library_record($machinename, 'Test', 1, 2, 1);
+
+        $content = array(
+            'params' => json_encode(['param1' => 'Test']),
+            'library' => array(
+                'libraryId' => 0,
+                'machineName' => 'TestLibrary',
+            ),
+            'disable' => 8
+        );
+
+        // Get the latest id (at this point, should be lib2).
+        $latestlib = $this->framework->get_latest_library_version($machinename);
+        $this->assertEquals($lib2->id, $latestlib->id);
+
+        // Get the latest id (at this point, should be lib3).
+        $lib3 = $generator->create_library_record($machinename, 'Test', 2, 1, 0);
+        $latestlib = $this->framework->get_latest_library_version($machinename);
+        $this->assertEquals($lib3->id, $latestlib->id);
+
+        // Get the latest id (at this point, should be still lib3).
+        $lib4 = $generator->create_library_record($machinename, 'Test', 1, 1, 3);
+        $latestlib = $this->framework->get_latest_library_version($machinename);
+        $this->assertEquals($lib3->id, $latestlib->id);
+
+        // Get the latest id (at this point, should be lib5).
+        $lib5 = $generator->create_library_record($machinename, 'Test', 2, 1, 6);
+        $latestlib = $this->framework->get_latest_library_version($machinename);
+        $this->assertEquals($lib5->id, $latestlib->id);
     }
 }

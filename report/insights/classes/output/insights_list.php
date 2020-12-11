@@ -92,7 +92,14 @@ class insights_list implements \renderable, \templatable {
         $data = new \stdClass();
         $data->modelid = $this->model->get_id();
         $data->contextid = $this->context->id;
-        $data->insightname = format_string($target->get_name());
+
+        $targetname = $target->get_name();
+        $data->insightname = format_string($targetname);
+
+        $targetinfostr = $targetname->get_identifier() . 'info';
+        if (get_string_manager()->string_exists($targetinfostr, $targetname->get_component())) {
+            $data->insightdescription = get_string($targetinfostr, $targetname->get_component());
+        }
 
         $data->showpredictionheading = true;
         if (!$target->is_linear()) {
@@ -123,7 +130,11 @@ class insights_list implements \renderable, \templatable {
             if ($predictionsdata) {
                 list($total, $predictions) = $predictionsdata;
 
-                $data->bulkactions = actions_exporter::add_bulk_actions($target, $output, $predictions, $this->context);
+                if ($predictions) {
+                    // No bulk actions if no predictions.
+                    $data->bulkactions = actions_exporter::add_bulk_actions($target, $output, $predictions, $this->context);
+                }
+
                 $data->multiplepredictions = count($predictions) > 1 ? true : false;
 
                 foreach ($predictions as $prediction) {
@@ -188,6 +199,8 @@ class insights_list implements \renderable, \templatable {
             $data->noinsights = $notification->export_for_template($output);
         }
 
+        $url = $PAGE->url;
+
         if ($this->othermodels) {
 
             $options = array();
@@ -196,14 +209,15 @@ class insights_list implements \renderable, \templatable {
             }
 
             // New moodle_url instance returned by magic_get_url.
-            $url = $PAGE->url;
             $url->remove_params('modelid');
             $modelselector = new \single_select($url, 'modelid', $options, '',
                 array('' => get_string('selectotherinsights', 'report_insights')));
             $data->modelselector = $modelselector->export_for_template($output);
         }
 
-        $data->pagingbar = $output->render(new \paging_bar($total, $this->page, $this->perpage, $PAGE->url));
+        // Add the 'perpage' parameter to the url which is later used to generate the pagination links.
+        $url->param('perpage', $this->perpage);
+        $data->pagingbar = $output->render(new \paging_bar($total, $this->page, $this->perpage, $url));
 
         return $data;
     }

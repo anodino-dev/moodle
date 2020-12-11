@@ -70,9 +70,9 @@ class tour extends external_api {
 
         \tool_usertours\event\tour_started::create([
             'contextid' => $context->id,
-            'objectid'  => $tourid,
+            'objectid'  => $tour->get_id(),
             'other'     => [
-                'pageurl' => $pageurl,
+                'pageurl' => $params['pageurl'],
             ],
         ])->trigger();
 
@@ -104,7 +104,7 @@ class tour extends external_api {
             'tourconfig'    => new external_single_structure([
                 'name'      => new external_value(PARAM_RAW, 'Tour Name'),
                 'steps'     => new external_multiple_structure(self::step_structure_returns()),
-            ])
+            ], 'Tour config', VALUE_OPTIONAL)
         ]);
     }
 
@@ -131,8 +131,9 @@ class tour extends external_api {
 
         $result = [];
 
-        if ($tourinstance = \tool_usertours\manager::get_matching_tours(new \moodle_url($params['pageurl']))) {
-            if ($tour->get_id() === $tourinstance->get_id()) {
+        $matchingtours = \tool_usertours\manager::get_matching_tours(new \moodle_url($params['pageurl']));
+        foreach ($matchingtours as $match) {
+            if ($tour->get_id() === $match->get_id()) {
                 $result['startTour'] = $tour->get_id();
 
                 \tool_usertours\event\tour_reset::create([
@@ -142,7 +143,7 @@ class tour extends external_api {
                         'pageurl'   => $params['pageurl'],
                     ],
                 ])->trigger();
-
+                break;
             }
         }
 

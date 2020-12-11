@@ -54,7 +54,7 @@ Feature: Data export from the privacy API
     And I reload the page
     And I should see "Download ready" in the "Victim User 1" "table_row"
     And I open the action menu in "Victim User 1" "table_row"
-    And following "Download" should download between "1" and "140000" bytes
+    And following "Download" should download between "1" and "144000" bytes
     And the following config values are set as admin:
       | privacyrequestexpiry | 1 | tool_dataprivacy |
     And I wait "1" seconds
@@ -89,7 +89,7 @@ Feature: Data export from the privacy API
     And I reload the page
     And I should see "Download ready" in the "Export all of my personal data" "table_row"
     And I open the action menu in "Victim User 1" "table_row"
-    And following "Download" should download between "1" and "140000" bytes
+    And following "Download" should download between "1" and "144000" bytes
 
     And the following config values are set as admin:
       | privacyrequestexpiry | 1 | tool_dataprivacy |
@@ -126,7 +126,7 @@ Feature: Data export from the privacy API
     And I reload the page
     And I should see "Download ready" in the "Victim User 1" "table_row"
     And I open the action menu in "Victim User 1" "table_row"
-    And following "Download" should download between "1" and "140000" bytes
+    And following "Download" should download between "1" and "144000" bytes
 
     And the following config values are set as admin:
       | privacyrequestexpiry | 1 | tool_dataprivacy |
@@ -151,3 +151,13 @@ Feature: Data export from the privacy API
     When I reload the page
     And I set the field "Search" to "University2"
     Then I should see "Victim User 2"
+
+  Scenario: Request data export as student with automatic approval turned on
+    Given the following config values are set as admin:
+      | automaticdataexportapproval | 1  | tool_dataprivacy |
+    And I log in as "victim"
+    And I follow "Profile" in the user menu
+    And I follow "Export all of my personal data"
+    When I press "Save changes"
+    Then I should see "Your request has been submitted and will be processed soon."
+    And I should see "Approved" in the "Export all of my personal data" "table_row"

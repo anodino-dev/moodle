@@ -144,7 +144,6 @@ Feature: Using the activity grade form element
     And I click on "Grade" "link" in the "Student 1" "table_row"
     And I set the field "Grade" to "C"
     And I press "Save changes"
-    And I press "Ok"
     And I follow "Edit settings"
     When I expand all fieldsets
     Then I should see "Some grades have already been awarded, so the grade type and scale cannot be changed"
@@ -186,7 +185,7 @@ Feature: Using the activity grade form element
     And I navigate to "Edit settings" in current page administration
     When I expand all fieldsets
     Then I should see "You cannot change the type, as grades already exist for this item."
-    And I set the field "Maximum grade" to "50"
+    And I set the field "Ratings > Maximum grade" to "50"
     And I press "Save and display"
     And I should see "You cannot change the maximum grade when grades already exist for an activity with ratings"
 
@@ -203,7 +202,6 @@ Feature: Using the activity grade form element
     And I click on "Grade" "link" in the "Student 1" "table_row"
     And I set the field "Grade out of 100" to "50"
     And I press "Save changes"
-    And I press "Ok"
     And I follow "Edit settings"
     When I expand all fieldsets
     Then I should see "Some grades have already been awarded, so the grade type cannot be changed. If you wish to change the maximum grade, you must first choose whether or not to rescale existing grades."

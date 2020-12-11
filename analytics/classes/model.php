@@ -493,13 +493,15 @@ class model {
             $predictionsprocessor = $this->model->predictionsprocessor;
         }
 
-        if ($contextids !== false) {
+        if ($contextids === false) {
+            $contextsstr = $this->model->contextids;
+        } else if (!$contextids) {
+            $contextsstr = null;
+        } else {
             $contextsstr = json_encode($contextids);
 
             // Reset the internal cache.
             $this->contexts = null;
-        } else {
-            $contextsstr = $this->model->contextids;
         }
 
         if ($this->model->timesplitting !== $timesplittingid ||
@@ -1396,6 +1398,10 @@ class model {
             $current++;
         }
 
+        if (empty($predictions)) {
+            return array();
+        }
+
         return [$current, $predictions];
     }
 
@@ -1487,6 +1493,17 @@ class model {
     }
 
     /**
+     * Returns the default output directory for prediction processors
+     *
+     * @return string
+     */
+    public static function default_output_dir(): string {
+        global $CFG;
+
+        return $CFG->dataroot . DIRECTORY_SEPARATOR . 'models';
+    }
+
+    /**
      * Returns the output directory for prediction processors.
      *
      * Directory structure as follows:
@@ -1500,8 +1517,6 @@ class model {
      * @return string
      */
     public function get_output_dir($subdirs = array(), $onlymodelid = false) {
-        global $CFG;
-
         $subdirstr = '';
         foreach ($subdirs as $subdir) {
             $subdirstr .= DIRECTORY_SEPARATOR . $subdir;
@@ -1510,7 +1525,7 @@ class model {
         $outputdir = get_config('analytics', 'modeloutputdir');
         if (empty($outputdir)) {
             // Apply default value.
-            $outputdir = rtrim($CFG->dataroot, '/') . DIRECTORY_SEPARATOR . 'models';
+            $outputdir = self::default_output_dir();
         }
 
         // Append model id.

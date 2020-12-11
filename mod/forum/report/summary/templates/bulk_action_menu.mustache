@@ -21,6 +21,7 @@
 
     Example context (json):
     {
+        "showbulkactions": true,
         "id": "formactionid",
         "attributes": [
             {
@@ -45,22 +46,50 @@
                 "name": "Send a message",
                 "value": "#messageselect"
             }
-        ]
+        ],
+        "perpage": {
+            "name": "perpage",
+            "method": "get",
+            "action": "#",
+            "classes": "singleselect",
+            "label": "Per page",
+            "formid": "randomid",
+            "id": "selectperpage",
+            "options":[
+                {"value": 50, "name": "50", "selected": true},
+                {"value": 100, "name": "100", "selected":false},
+                {"value": 200, "name": "200", "selected": false}
+            ]
+        }
     }
 }}
 
-<br /><div class="buttons"><div class="form-inline">
-    <label for="{{id}}">{{#str}}withselectedusers{{/str}}</label>
-    <select id="{{id}}" class="select custom-select ml-2" {{#attributes}}{{name}}="{{value}}" {{/attributes}}>
-        <option value="">{{#str}}choosedots{{/str}}</option>
-    {{#actions}}
-        <option value="{{value}}">{{name}}</option>
-    {{/actions}}
-    </select>
-</div></div>
+<br />
+<div class="d-inline-block w-100">
+    {{#showbulkactions}}
+    <div class="buttons float-left">
+        <div class="form-inline pl-1">
+            <label for="{{id}}">{{#str}}withselectedusers{{/str}}</label>
+            <select id="{{id}}" class="select custom-select ml-4" {{#attributes}}{{name}}="{{value}}" {{/attributes}}>
+                <option value="">{{#str}}choosedots{{/str}}</option>
+                {{#actions}}
+                <option value="{{value}}">{{name}}</option>
+                {{/actions}}
+            </select>
+        </div>
+    </div>
+    {{/showbulkactions}}
+    <div class="float-right">
+        {{#perpage}}
+            {{> core/single_select}}
+        {{/perpage}}
+    </div>
+</div>
+
 {{#js}}
-require(['jquery', 'core_message/message_send_bulk'], function($, BulkSender) {
-    $('#{{id}}').on('change', function(e) {
+require(['jquery', 'core_message/message_send_bulk', 'core/custom_interaction_events'], function($, BulkSender, CustomEvents) {
+    CustomEvents.define('#{{id}}', [CustomEvents.events.accessibleChange]);
+    $('#{{id}}').on(CustomEvents.events.accessibleChange, function(e) {
         var action = $(e.target).val();
         if (action.indexOf('#') !== -1) {
             e.preventDefault();

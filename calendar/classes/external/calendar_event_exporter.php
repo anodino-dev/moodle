@@ -109,7 +109,6 @@ class calendar_event_exporter extends event_exporter_base {
         } else if ($event->get_type() == 'category') {
             $url = $event->get_category()->get_proxied_instance()->get_view_link();
         } else {
-            // TODO MDL-58866 We do not have any way to find urls for events outside of course modules.
             $url = course_get_url($hascourse ? $course : SITEID);
         }
 
@@ -370,7 +369,7 @@ class calendar_event_exporter extends event_exporter_base {
      * and the module's minimum timestamp limit.
      *
      * @deprecated since Moodle 3.6. Please use get_timestamp_min_limit().
-     * @todo final deprecation. To be removed in Moodle 4.0
+     * @todo final deprecation. To be removed in Moodle 3.10
      * @param DateTimeInterface $starttime The event start time
      * @param array $min The module's minimum limit for the event
      * @return array Returns an array with mindaytimestamp and mindayerror keys.
@@ -386,7 +385,7 @@ class calendar_event_exporter extends event_exporter_base {
      * and the module's maximum timestamp limit.
      *
      * @deprecated since Moodle 3.6. Please use get_timestamp_max_limit().
-     * @todo final deprecation. To be removed in Moodle 4.0
+     * @todo final deprecation. To be removed in Moodle 3.10
      * @param DateTimeInterface $starttime The event start time
      * @param array $max The module's maximum limit for the event
      * @return array Returns an array with maxdaytimestamp and maxdayerror keys.

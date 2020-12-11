@@ -31,12 +31,12 @@ defined('MOODLE_INTERNAL') || die();
  * @copyright 2016 Marina Glancy
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class media_videojs_testcase extends advanced_testcase {
+class media_videojs_player_testcase extends advanced_testcase {
 
     /**
      * Pre-test setup. Preserves $CFG.
      */
-    public function setUp() {
+    public function setUp(): void {
         parent::setUp();
 
         // Reset $CFG and $SERVER.
@@ -246,8 +246,8 @@ class media_videojs_testcase extends advanced_testcase {
      * @param string $t output of core_media_manager::embed_url.
      */
     protected function youtube_plugin_engaged($t) {
-        $this->assertContains('mediaplugin_videojs', $t);
-        $this->assertContains('data-setup-lazy="{&quot;techOrder&quot;: [&quot;youtube&quot;]', $t);
+        $this->assertStringContainsString('mediaplugin_videojs', $t);
+        $this->assertStringContainsString('data-setup-lazy="{&quot;techOrder&quot;: [&quot;youtube&quot;]', $t);
     }
 
     /**
@@ -271,32 +271,53 @@ class media_videojs_testcase extends advanced_testcase {
         $url = new moodle_url('https://www.youtube.com/watch?v=dv2f_xfmbD8&index=4&list=PLxcO_MFWQBDcyn9xpbmx601YSDlDcTcr0');
         $t = $manager->embed_url($url);
         $this->youtube_plugin_engaged($t);
-        $this->assertContains('list=PLxcO_MFWQBDcyn9xpbmx601YSDlDcTcr0', $t);
-
-        // Format: youtube video with start time.
-        $url = new moodle_url('https://www.youtube.com/watch?v=JNJMF1l3udM&t=1h11s');
-        $t = $manager->embed_url($url);
-        $this->youtube_plugin_engaged($t);
-        $this->assertContains('t=1h11s', $t);
-
-        // Format: youtube video within playlist with start time.
-        $url = new moodle_url('https://www.youtube.com/watch?v=dv2f_xfmbD8&index=4&list=PLxcO_MFWQBDcyn9xpbmx601YSDlDcTcr0&t=1m5s');
-        $t = $manager->embed_url($url);
-        $this->youtube_plugin_engaged($t);
-        $this->assertContains('list=PLxcO_MFWQBDcyn9xpbmx601YSDlDcTcr0', $t);
-        $this->assertContains('t=1m5s', $t);
+        $this->assertStringContainsString('list=PLxcO_MFWQBDcyn9xpbmx601YSDlDcTcr0', $t);
 
         // Format: youtube playlist - not supported.
         $url = new moodle_url('http://www.youtube.com/view_play_list?p=PL6E18E2927047B662');
         $t = $manager->embed_url($url);
-        $this->assertNotContains('mediaplugin_videojs', $t);
+        $this->assertStringNotContainsString('mediaplugin_videojs', $t);
         $url = new moodle_url('http://www.youtube.com/playlist?list=PL6E18E2927047B662');
         $t = $manager->embed_url($url);
-        $this->assertNotContains('mediaplugin_videojs', $t);
+        $this->assertStringNotContainsString('mediaplugin_videojs', $t);
         $url = new moodle_url('http://www.youtube.com/p/PL6E18E2927047B662');
         $t = $manager->embed_url($url);
-        $this->assertNotContains('mediaplugin_videojs', $t);
+        $this->assertStringNotContainsString('mediaplugin_videojs', $t);
+    }
 
+    /**
+     * Data provider for {@see test_youtube_start_time}
+     *
+     * @return array
+     */
+    public function youtube_start_time_provider(): array {
+        return [
+            ['https://www.youtube.com/watch?v=JNJMF1l3udM&t=1h11s', 3611],
+            ['https://www.youtube.com/watch?v=dv2f_xfmbD8&index=4&list=PLxcO_MFWQBDcyn9xpbmx601YSDlDcTcr0&t=1m5s', 65],
+            ['https://www.youtube.com/watch?v=JNJMF1l3udM&t=1h10m30s', 4230],
+            ['https://www.youtube.com/watch?v=JNJMF1l3udM&t=3m', 180],
+            ['https://www.youtube.com/watch?v=JNJMF1l3udM&t=43s', 43],
+            ['https://www.youtube.com/watch?v=JNJMF1l3udM&t=1234', 1234],
+            ['https://www.youtube.com/watch?v=JNJMF1l3udM&t=invalid', 0],
+        ];
+    }
+
+    /**
+     * Test Youtube video embedding with URL's containing start time interval
+     *
+     * @param string $url
+     * @param int $expectedstart
+     *
+     * @dataProvider youtube_start_time_provider
+     */
+    public function test_youtube_start_time(string $url, int $expectedstart) {
+        set_config('youtube', 1, 'media_videojs');
+        set_config('useflash', 0, 'media_videojs');
+
+        $embedcode = core_media_manager::instance()->embed_url(new moodle_url($url));
+
+        $this->youtube_plugin_engaged($embedcode);
+        $this->assertStringContainsString("&quot;youtube&quot;: {&quot;start&quot;: &quot;{$expectedstart}&quot;}", $embedcode);
     }
 
     /**
@@ -305,8 +326,8 @@ class media_videojs_testcase extends advanced_testcase {
      * @param string $t output of core_media_manager::embed_url.
      */
     protected function flash_plugin_engaged($t) {
-        $this->assertContains('mediaplugin_videojs', $t);
-        $this->assertContains('data-setup-lazy="{&quot;techOrder&quot;: [&quot;flash&quot;, &quot;html5&quot;]', $t);
+        $this->assertStringContainsString('mediaplugin_videojs', $t);
+        $this->assertStringContainsString('data-setup-lazy="{&quot;techOrder&quot;: [&quot;flash&quot;, &quot;html5&quot;]', $t);
     }
 
     /**
@@ -328,7 +349,7 @@ class media_videojs_testcase extends advanced_testcase {
         set_config('useflash', 0, 'media_videojs');
         $url = new moodle_url('http://example.org/some_filename.flv');
         $t = $manager->embed_url($url);
-        $this->assertNotContains('mediaplugin_videojs', $t);
+        $this->assertStringNotContainsString('mediaplugin_videojs', $t);
         $this->assertRegExp('~<a class="mediafallbacklink" href="http://example.org/some_filename.flv">some_filename.flv</a>~', $t);
     }
 
@@ -343,7 +364,7 @@ class media_videojs_testcase extends advanced_testcase {
         set_config('rtmp', 0, 'media_videojs');
         $url = new moodle_url('rtmp://example.com/fms&mp4:path/to/file.mp4');
         $t = $manager->embed_url($url);
-        $this->assertNotContains('mediaplugin_videojs', $t);
+        $this->assertStringNotContainsString('mediaplugin_videojs', $t);
         $this->assertRegExp('~<a class="mediafallbacklink" href="rtmp://example.com/fms&mp4:path/to/file.mp4">file.mp4</a>~', $t);
 
         // RTMP enabled, flash disabled.
@@ -351,7 +372,7 @@ class media_videojs_testcase extends advanced_testcase {
         set_config('rtmp', 1, 'media_videojs');
         $url = new moodle_url('rtmp://example.com/fms&mp4:path/to/file.mp4');
         $t = $manager->embed_url($url);
-        $this->assertNotContains('mediaplugin_videojs', $t);
+        $this->assertStringNotContainsString('mediaplugin_videojs', $t);
         $this->assertRegExp('~<a class="mediafallbacklink" href="rtmp://example.com/fms&mp4:path/to/file.mp4">file.mp4</a>~', $t);
 
         // RTMP enabled, flash enabled, rtmp/mp4 type expected.

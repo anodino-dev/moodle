@@ -45,7 +45,7 @@ class cachestore_redis_compressor_test extends advanced_testcase {
     /**
      * Test set up
      */
-    public function setUp() {
+    public function setUp(): void {
         if (!cachestore_redis::are_requirements_met() || !defined('TEST_CACHESTORE_REDIS_TESTSERVERS')) {
             $this->markTestSkipped('Could not test cachestore_redis. Requirements are not met.');
         }
@@ -171,6 +171,11 @@ class cachestore_redis_compressor_test extends advanced_testcase {
      * @return array
      */
     public function provider_for_tests_setget() {
+        if (!cachestore_redis::are_requirements_met()) {
+            // Even though we skip all tests in this case, this provider can still show warnings about non-existing class.
+            return [];
+        }
+
         $data = [
             ['none, none',
                 Redis::SERIALIZER_NONE, cachestore_redis::COMPRESSOR_NONE,

@@ -48,7 +48,7 @@ class customfield_date_plugin_testcase extends advanced_testcase {
     /**
      * Tests set up.
      */
-    public function setUp() {
+    public function setUp(): void {
         $this->resetAfterTest();
 
         $this->cfcat = $this->get_generator()->create_category();
@@ -169,6 +169,35 @@ class customfield_date_plugin_testcase extends advanced_testcase {
         $d = core_customfield\data_controller::create(0, null, $this->cfields[2]);
         $this->assertEquals(0, $d->get_value());
         $this->assertEquals(null, $d->export_value());
+    }
+
+    /**
+     * Data provider for {@see test_parse_value}
+     *
+     * @return array
+     */
+    public function parse_value_provider() : array {
+        return [
+            // Valid times.
+            ['2019-10-01', strtotime('2019-10-01')],
+            ['2019-10-01 14:00', strtotime('2019-10-01 14:00')],
+            // Invalid times.
+            ['ZZZZZ', 0],
+            ['202-04-01', 0],
+            ['2019-15-15', 0],
+        ];
+    }
+    /**
+     * Test field parse_value method
+     *
+     * @param string $value
+     * @param int $expected
+     * @return void
+     *
+     * @dataProvider parse_value_provider
+     */
+    public function test_parse_value(string $value, int $expected) {
+        $this->assertSame($expected, $this->cfields[1]->parse_value($value));
     }
 
     /**

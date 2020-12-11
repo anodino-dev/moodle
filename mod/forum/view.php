@@ -22,6 +22,8 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+use mod_forum\grades\forum_gradeitem;
+
 require_once('../../config.php');
 
 $managerfactory = mod_forum\local\container::get_manager_factory();
@@ -76,23 +78,39 @@ $cm = \cm_info::create($coursemodule);
 
 require_course_login($course, true, $cm);
 
-$istypesingle = 'single' === $forum->get_type();
+$istypesingle = $forum->get_type() === 'single';
+$saveddisplaymode = get_user_preferences('forum_displaymode', $CFG->forum_displaymode);
 
 if ($mode) {
-    set_user_preference('forum_displaymode', $mode);
+    $displaymode = $mode;
+} else {
+    $displaymode = $saveddisplaymode;
 }
 
-$displaymode = get_user_preferences('forum_displaymode', $CFG->forum_displaymode);
+if (get_user_preferences('forum_useexperimentalui', false)) {
+    if ($displaymode == FORUM_MODE_NESTED) {
+        $displaymode = FORUM_MODE_NESTED_V2;
+    }
+} else {
+    if ($displaymode == FORUM_MODE_NESTED_V2) {
+        $displaymode = FORUM_MODE_NESTED;
+    }
+}
+
+if ($displaymode != $saveddisplaymode) {
+    set_user_preference('forum_displaymode', $displaymode);
+}
 
 $PAGE->set_context($forum->get_context());
 $PAGE->set_title($forum->get_name());
-$PAGE->add_body_class('forumtype-' . $forum->get_type() . ' reset-style');
+$PAGE->add_body_class('forumtype-' . $forum->get_type());
 $PAGE->set_heading($course->fullname);
 $PAGE->set_button(forum_search_form($course, $search));
-$PAGE->set_include_region_main_settings_in_header_actions(true);
 
-if ($istypesingle && $displaymode == FORUM_MODE_MODERN) {
-    $PAGE->add_body_class('modern-display-mode reset-style');
+if ($istypesingle && $displaymode == FORUM_MODE_NESTED_V2) {
+    $PAGE->add_body_class('nested-v2-display-mode reset-style');
+    $settingstrigger = $OUTPUT->render_from_template('mod_forum/settings_drawer_trigger', null);
+    $PAGE->add_header_action($settingstrigger);
 }
 
 if (empty($cm->visible) && !has_capability('moodle/course:viewhiddenactivities', $forum->get_context())) {
@@ -153,6 +171,42 @@ $groupid = groups_get_activity_group($cm, true) ?: null;
 $rendererfactory = mod_forum\local\container::get_renderer_factory();
 switch ($forum->get_type()) {
     case 'single':
+        $forumgradeitem = forum_gradeitem::load_from_forum_entity($forum);
+        if ($capabilitymanager->can_grade($USER)) {
+
+            if ($forumgradeitem->is_grading_enabled()) {
+                $groupid = groups_get_activity_group($cm, true) ?: null;
+                $gradeobj = (object) [
+                    'contextid' => $forum->get_context()->id,
+                    'cmid' => $cmid,
+                    'name' => $forum->get_name(),
+                    'courseid' => $course->id,
+                    'coursename' => $course->shortname,
+                    'experimentaldisplaymode' => $displaymode == FORUM_MODE_NESTED_V2,
+                    'groupid' => $groupid,
+                    'gradingcomponent' => $forumgradeitem->get_grading_component_name(),
+                    'gradingcomponentsubtype' => $forumgradeitem->get_grading_component_subtype(),
+                    'sendstudentnotifications' => $forum->should_notify_students_default_when_grade_for_forum(),
+                ];
+                echo $OUTPUT->render_from_template('mod_forum/grades/grade_button', $gradeobj);
+            }
+        } else {
+            if ($forumgradeitem->is_grading_enabled()) {
+                $groupid = groups_get_activity_group($cm, true) ?: null;
+                $gradeobj = (object) [
+                    'contextid' => $forum->get_context()->id,
+                    'cmid' => $cmid,
+                    'name' => $forum->get_name(),
+                    'courseid' => $course->id,
+                    'coursename' => $course->shortname,
+                    'groupid' => $groupid,
+                    'userid' => $USER->id,
+                    'gradingcomponent' => $forumgradeitem->get_grading_component_name(),
+                    'gradingcomponentsubtype' => $forumgradeitem->get_grading_component_subtype(),
+                ];
+                echo $OUTPUT->render_from_template('mod_forum/grades/view_grade_button', $gradeobj);
+            }
+        }
         $discussion = $discussionvault->get_last_discussion_in_forum($forum);
         $discussioncount = $discussionvault->get_count_discussions_in_forum($forum);
         $hasmultiplediscussions = $discussioncount > 1;
@@ -191,7 +245,7 @@ switch ($forum->get_type()) {
         break;
     default:
         $discussionsrenderer = $rendererfactory->get_discussion_list_renderer($forum);
-        echo $discussionsrenderer->render($USER, $cm, $groupid, $sortorder, $pageno, $pagesize);
+        echo $discussionsrenderer->render($USER, $cm, $groupid, $sortorder, $pageno, $pagesize, $displaymode);
 }
 
 echo $OUTPUT->footer();

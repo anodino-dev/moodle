@@ -33,12 +33,12 @@
 }}
 <div
     id="{{$drawerid}}drawer-{{uniqid}}{{/drawerid}}"
-    class="{{$drawerclasses}}{{/drawerclasses}} drawer bg-white hidden"
-    aria-expanded="false"
-    aria-hidden="true"
+    class="{{$drawerclasses}}{{/drawerclasses}} drawer bg-white {{^show}}hidden{{/show}}"
+    aria-expanded="{{#show}}true{{/show}}{{^show}}false{{/show}}"
+    {{^show}}aria-hidden="true"{{/show}}
     data-region="right-hand-drawer"
     role="region"
-    tabindex="-1"
+    tabindex="0"
 >
     {{$drawercontent}}{{/drawercontent}}
 </div>
