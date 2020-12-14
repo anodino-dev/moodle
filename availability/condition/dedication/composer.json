@@ -1,0 +1,19 @@
+{
+    "name": "trivax/moodle-availability_dedication",
+    "description": "An availability condition for Moodle that limits acces to an activity by users based on a min dedication to the course",
+    "type": "moodle-availability",
+    "license": "GPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Desarrollo trivax",
+            "email": "dev@bitvax.com"
+        }
+    ],
+    "require": {
+        "composer/installers": "~1.0"
+    },
+    "extra": {
+        "installer-name": "dedication"
+    }
+}
+
