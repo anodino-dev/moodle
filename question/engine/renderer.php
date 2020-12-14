@@ -323,23 +323,21 @@ class core_question_renderer extends plugin_renderer_base {
         if ($flagged) {
             $icon = 'i/flagged';
             $alt = get_string('flagged', 'question');
-            $label = get_string('clickunflag', 'question');
         } else {
             $icon = 'i/unflagged';
             $alt = get_string('notflagged', 'question');
-            $label = get_string('clickflag', 'question');
         }
         $attributes = array(
             'src' => $this->image_url($icon),
             'alt' => $alt,
-            'class' => 'questionflagimage',
         );
         if ($id) {
             $attributes['id'] = $id;
         }
         $img = html_writer::empty_tag('img', $attributes);
-        $img .= html_writer::span($label);
-
+        if ($flagged) {
+            $img .= ' ' . get_string('flagged', 'question');
+        }
         return $img;
     }
 

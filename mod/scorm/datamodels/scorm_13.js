@@ -1216,11 +1216,7 @@ function SCORMapi1_3(def, cmiobj, cmiint, cmicommentsuser, cmicommentslms, scorm
         datastring += navrequest;
 
         var myRequest = NewHttpReq();
-        var result = DoRequest(myRequest, datamodelurl, datamodelurlparams + datastring);
-
-        if (result === false) {
-            return false;
-        }
+        result = DoRequest(myRequest, datamodelurl, datamodelurlparams + datastring);
 
         var results = String(result).split('\n');
         if ((results.length > 2) && (navrequest != '')) {

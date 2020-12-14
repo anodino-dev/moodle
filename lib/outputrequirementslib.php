@@ -795,7 +795,7 @@ class page_requirements_manager {
                                                         array('dndenabled_inbox', 'moodle'), array('fileexists', 'moodle'), array('maxbytesfile', 'error'),
                                                         array('sizegb', 'moodle'), array('sizemb', 'moodle'), array('sizekb', 'moodle'), array('sizeb', 'moodle'),
                                                         array('maxareabytesreached', 'moodle'), array('serverconnection', 'error'),
-                                                        array('changesmadereallygoaway', 'moodle'), array('complete', 'moodle')
+                                                        array('changesmadereallygoaway', 'moodle')
                                                     ));
                     break;
             }
@@ -1445,14 +1445,14 @@ class page_requirements_manager {
         );
 
         if ($this->yui3loader->combine) {
-            return '<script src="' .
+            return '<script type="text/javascript" src="' .
                     $this->yui3loader->local_comboBase .
                     implode('&amp;', $baserollups) .
                     '"></script>';
         } else {
             $code = '';
             foreach ($baserollups as $rollup) {
-                $code .= '<script src="'.$this->yui3loader->local_comboBase.$rollup.'"></script>';
+                $code .= '<script type="text/javascript" src="'.$this->yui3loader->local_comboBase.$rollup.'"></script>';
             }
             return $code;
         }
@@ -1575,9 +1575,6 @@ class page_requirements_manager {
     public function get_top_of_body_code(renderer_base $renderer) {
         // First the skip links.
         $output = $renderer->render_skip_links($this->skiplinks);
-
-        // Include the MDN Polyfill.
-        $output .= html_writer::script('', $this->js_fix_url('/lib/mdn-polyfills/polyfill.js'));
 
         // YUI3 JS needs to be loaded early in the body. It should be cached well by the browser.
         $output .= $this->get_yui3lib_headcode();

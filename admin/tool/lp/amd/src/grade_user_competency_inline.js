@@ -94,7 +94,6 @@ define(['jquery',
         var options = [],
             self = this;
 
-        M.util.js_pending('tool_lp/grade_user_competency_inline:_setUp');
         var promise = ScaleValues.get_values(self._scaleId);
         promise.then(function(scalevalues) {
             options.push({
@@ -135,7 +134,6 @@ define(['jquery',
         .then(function(dialogue) {
             self._dialogue = dialogue;
 
-            M.util.js_complete('tool_lp/grade_user_competency_inline:_setUp');
             return;
         })
         .fail(notification.exception);

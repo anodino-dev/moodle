@@ -25,7 +25,6 @@ define(
     'jquery',
     'core/custom_interaction_events',
     'core/notification',
-    'core/pending',
     'core/pubsub',
     'core/str',
     'core/templates',
@@ -41,7 +40,6 @@ function(
     $,
     CustomEvents,
     Notification,
-    Pending,
     PubSub,
     Str,
     Templates,
@@ -75,7 +73,6 @@ function(
 
     var LOAD_LIMIT = 50;
     var loadedConversationsById = {};
-    var deletedConversationsById = {};
     var loadedTotalCounts = false;
     var loadedUnreadCounts = false;
 
@@ -197,6 +194,7 @@ function(
     /**
      * Render the messages in the overview page.
      *
+     * @param {Object} contentContainer Conversations content container.
      * @param {Array} conversations List of conversations to render.
      * @param {Number} userId Logged in user id.
      * @return {Object} jQuery promise.
@@ -597,7 +595,6 @@ function(
                 return;
             }
 
-            var pendingPromise = new Pending('core_message/message_drawer_view_overview_section:new');
             var loggedInUserId = conversation.loggedInUserId;
             var conversationId = conversation.id;
             var element = getConversationElement(root, conversationId);
@@ -606,34 +603,19 @@ function(
                 var contentContainer = LazyLoadList.getContentContainer(root);
                 render([conversation], loggedInUserId)
                     .then(function(html) {
-                        if (deletedConversationsById[conversationId]) {
-                            // This conversation was deleted at some point since the messaging drawer was created.
-                            if (conversation.messages[0].timeadded < deletedConversationsById[conversationId]) {
-                                // The 'new' message was added before the conversation was deleted.
-                                // This is probably stale data.
-                                return;
-                            }
-                        }
-                        contentContainer.prepend(html);
-                        element.remove();
-
-                        return;
-                    })
-                    .then(pendingPromise.resolve)
+                            contentContainer.prepend(html);
+                            element.remove();
+                            return html;
+                        })
                     .catch(Notification.exception);
-            } else if (conversation.messages.length) {
-                createNewConversationFromEvent(root, conversation, loggedInUserId)
-                .then(pendingPromise.resolve)
-                .catch();
             } else {
-                pendingPromise.resolve();
+                createNewConversationFromEvent(root, conversation, loggedInUserId);
             }
         });
 
         PubSub.subscribe(MessageDrawerEvents.CONVERSATION_DELETED, function(conversationId) {
             var conversationElement = getConversationElement(root, conversationId);
             delete loadedConversationsById[conversationId];
-            deletedConversationsById[conversationId] = new Date();
             if (conversationElement.length) {
                 deleteConversation(root, conversationElement);
             }

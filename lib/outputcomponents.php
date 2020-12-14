@@ -2062,10 +2062,12 @@ class html_writer {
      */
     public static function script($jscode, $url=null) {
         if ($jscode) {
-            return self::tag('script', "\n//<![CDATA[\n$jscode\n//]]>\n") . "\n";
+            $attributes = array('type'=>'text/javascript');
+            return self::tag('script', "\n//<![CDATA[\n$jscode\n//]]>\n", $attributes) . "\n";
 
         } else if ($url) {
-            return self::tag('script', '', ['src' => $url]) . "\n";
+            $attributes = array('type'=>'text/javascript', 'src'=>$url);
+            return self::tag('script', '', $attributes) . "\n";
 
         } else {
             return '';
@@ -3065,7 +3067,7 @@ class paging_bar implements renderable, templatable {
 
         if ($this->page > 0) {
             $data->previous = [
-                'page' => $this->page,
+                'page' => $this->page - 1,
                 'url' => (new moodle_url($this->baseurl, [$this->pagevar => $this->page - 1]))->out(false)
             ];
         }
@@ -3111,7 +3113,7 @@ class paging_bar implements renderable, templatable {
 
         if ($this->page + 1 != $lastpage) {
             $data->next = [
-                'page' => $this->page + 2,
+                'page' => $this->page + 1,
                 'url' => (new moodle_url($this->baseurl, [$this->pagevar => $this->page + 1]))->out(false)
             ];
         }
@@ -3733,10 +3735,11 @@ class custom_menu extends custom_menu_item {
                 $setting = trim($setting);
                 if (!empty($setting)) {
                     switch ($i) {
-                        case 0: // Menu text.
+                        case 0:
                             $itemtext = ltrim($setting, '-');
+                            $itemtitle = $itemtext;
                             break;
-                        case 1: // URL.
+                        case 1:
                             try {
                                 $itemurl = new moodle_url($setting);
                             } catch (moodle_exception $exception) {
@@ -3745,10 +3748,10 @@ class custom_menu extends custom_menu_item {
                                 $itemurl = null;
                             }
                             break;
-                        case 2: // Title attribute.
+                        case 2:
                             $itemtitle = $setting;
                             break;
-                        case 3: // Language.
+                        case 3:
                             if (!empty($language)) {
                                 $itemlanguages = array_map('trim', explode(',', $setting));
                                 $itemvisible &= in_array($language, $itemlanguages);

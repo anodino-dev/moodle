@@ -87,7 +87,6 @@ function cron_run() {
  * Execute all queued scheduled tasks, applying necessary concurrency limits and time limits.
  *
  * @param   int     $timenow The time this process started.
- * @throws \moodle_exception
  */
 function cron_run_scheduled_tasks(int $timenow) {
     // Allow a restriction on the number of scheduled task runners at once.
@@ -97,10 +96,7 @@ function cron_run_scheduled_tasks(int $timenow) {
 
     $scheduledlock = null;
     for ($run = 0; $run < $maxruns; $run++) {
-        // If we can't get a lock instantly it means runner N is already running
-        // so fail as fast as possible and try N+1 so we don't limit the speed at
-        // which we bring new runners into the pool.
-        if ($scheduledlock = $cronlockfactory->get_lock("scheduled_task_runner_{$run}", 0)) {
+        if ($scheduledlock = $cronlockfactory->get_lock("scheduled_task_runner_{$run}", 1)) {
             break;
         }
     }
@@ -113,28 +109,25 @@ function cron_run_scheduled_tasks(int $timenow) {
     $starttime = time();
 
     // Run all scheduled tasks.
-    try {
-        while (!\core\task\manager::static_caches_cleared_since($timenow) &&
-                $task = \core\task\manager::get_next_scheduled_task($timenow)) {
-            cron_run_inner_scheduled_task($task);
-            unset($task);
+    while (!\core\task\manager::static_caches_cleared_since($timenow) &&
+            $task = \core\task\manager::get_next_scheduled_task($timenow)) {
+        cron_run_inner_scheduled_task($task);
+        unset($task);
 
-            if ((time() - $starttime) > $maxruntime) {
-                mtrace("Stopping processing of scheduled tasks as time limit has been reached.");
-                break;
-            }
+        if ((time() - $starttime) > $maxruntime) {
+            mtrace("Stopping processing of scheduled tasks as time limit has been reached.");
+            break;
         }
-    } finally {
-        // Release the scheduled task runner lock.
-        $scheduledlock->release();
     }
+
+    // Release the scheduled task runner lock.
+    $scheduledlock->release();
 }
 
 /**
  * Execute all queued adhoc tasks, applying necessary concurrency limits and time limits.
  *
  * @param   int     $timenow The time this process started.
- * @throws \moodle_exception
  */
 function cron_run_adhoc_tasks(int $timenow) {
     // Allow a restriction on the number of adhoc task runners at once.
@@ -144,10 +137,7 @@ function cron_run_adhoc_tasks(int $timenow) {
 
     $adhoclock = null;
     for ($run = 0; $run < $maxruns; $run++) {
-        // If we can't get a lock instantly it means runner N is already running
-        // so fail as fast as possible and try N+1 so we don't limit the speed at
-        // which we bring new runners into the pool.
-        if ($adhoclock = $cronlockfactory->get_lock("adhoc_task_runner_{$run}", 0)) {
+        if ($adhoclock = $cronlockfactory->get_lock("adhoc_task_runner_{$run}", 1)) {
             break;
         }
     }
@@ -160,21 +150,19 @@ function cron_run_adhoc_tasks(int $timenow) {
     $starttime = time();
 
     // Run all adhoc tasks.
-    try {
-        while (!\core\task\manager::static_caches_cleared_since($timenow) &&
-                $task = \core\task\manager::get_next_adhoc_task(time())) {
-            cron_run_inner_adhoc_task($task);
-            unset($task);
+    while (!\core\task\manager::static_caches_cleared_since($timenow) &&
+            $task = \core\task\manager::get_next_adhoc_task(time())) {
+        cron_run_inner_adhoc_task($task);
+        unset($task);
 
-            if ((time() - $starttime) > $maxruntime) {
-                mtrace("Stopping processing of adhoc tasks as time limit has been reached.");
-                break;
-            }
+        if ((time() - $starttime) > $maxruntime) {
+            mtrace("Stopping processing of adhoc tasks as time limit has been reached.");
+            break;
         }
-    } finally {
-        // Release the adhoc task runner lock.
-        $adhoclock->release();
     }
+
+    // Release the adhoc task runner lock.
+    $adhoclock->release();
 }
 
 /**
@@ -228,8 +216,6 @@ function cron_run_inner_scheduled_task(\core\task\task_base $task) {
         }
         \core\task\manager::scheduled_task_failed($task);
     } finally {
-        // Reset back to the standard admin user.
-        cron_setup_user();
         cron_prepare_core_renderer(true);
     }
     get_mailer('close');

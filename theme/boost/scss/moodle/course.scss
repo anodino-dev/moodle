@@ -330,23 +330,24 @@ body:not(.editing)  .sitetopic ul.section {
 .course-content ul.topics,
 .course-content ul.weeks {
     padding: 0;
-    margin: 0;
-    list-style: none;
 
     li.section {
         margin-top: $spacer;
         padding-bottom: $spacer;
+
+        .content {
+            margin: 0;
+            padding: 0;
+        }
 
         .summary,
         .content > .availabilityinfo {
             margin-left: 25px;
         }
 
-        .left,
-        .right {
-            padding: 0 6px 0;
+        .left {
+            padding-top: 0;
             text-align: right;
-            width: auto;
         }
     }
 }
@@ -554,6 +555,23 @@ span.editinstructions {
     padding: .3em;
 }
 
+.dndupload-progress-outer {
+    background-color: $progress-bg;
+    @include border-radius($progress-border-radius);
+    @include box-shadow($progress-box-shadow);
+    display: block;
+    width: 100%;
+    height: $spacer-y;
+    margin-bottom: $spacer-y;
+}
+
+.dndupload-progress-inner {
+    background-color: $progress-bar-color;
+    @include border-left-radius($progress-border-radius);
+    display: inline-block;
+    height: $spacer-y;
+}
+
 .dndupload-hidden {
     display: none;
 }
@@ -573,7 +591,7 @@ span.editinstructions {
 
 #coursesearch {
     margin-top: 1em;
-    text-align: left;
+    text-align: center;
 }
 
 #page-course-pending .pendingcourserequests {
@@ -853,8 +871,10 @@ span.editinstructions {
     .listitem {
 
         &[data-selected='1'] {
-            border-left: 6px solid map-get($theme-colors, 'info');
-            padding-left: calc(#{$list-group-item-padding-x} - 5px);
+            background-color: $table-bg-accent;
+            &:hover {
+                background-color: $table-bg-hover;
+            }
         }
     }
 
@@ -901,6 +921,7 @@ span.editinstructions {
             }
 
             .idnumber {
+                color: #a1a1a8;
                 margin-right: 2em;
             }
         }
@@ -965,6 +986,25 @@ span.editinstructions {
         }
 
         .listitem {
+            > div {
+                > .ba-checkbox {
+                    width: 2.2em;
+                    text-align: center;
+                    margin: -1px 0.5em 0 0;
+                    padding-top: 2px;
+                }
+            }
+
+            &.highlight > div > .ba-checkbox {
+                background-color: $table-bg-hover;
+            }
+
+            &[data-selected='1'] > div > .ba-checkbox {
+                margin: 0 0.5em 0 0;
+                padding: 0;
+                background-color: inherit;
+            }
+
             &:first-child > div .item-actions .action-moveup,
             &:last-child > div .item-actions .action-movedown {
                 display: none;

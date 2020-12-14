@@ -503,13 +503,10 @@ function badges_bake($hash, $badgeid, $userid = 0, $pathhash = false) {
             $contents = $file->get_content();
 
             $filehandler = new PNG_MetaDataHandler($contents);
-            // For now, the site backpack OB version will be used as default.
-            $obversion = badges_open_badges_backpack_api();
-            $assertion = new core_badges_assertion($hash, $obversion);
-            $assertionjson = json_encode($assertion->get_badge_assertion());
-            if ($filehandler->check_chunks("iTXt", "openbadges")) {
-                // Add assertion URL iTXt chunk.
-                $newcontents = $filehandler->add_chunks("iTXt", "openbadges", $assertionjson);
+            $assertion = new moodle_url('/badges/assertion.php', array('b' => $hash));
+            if ($filehandler->check_chunks("tEXt", "openbadges")) {
+                // Add assertion URL tExt chunk.
+                $newcontents = $filehandler->add_chunks("tEXt", "openbadges", $assertion->out(false));
                 $fileinfo = array(
                         'contextid' => $user_context->id,
                         'component' => 'badges',
@@ -871,7 +868,7 @@ function badges_get_default_issuer() {
     global $CFG, $SITE;
 
     $issuer = array();
-    $issuerurl = new moodle_url('/');
+    $issuerurl = new moodle_url('/badges/issuer.php');
     $issuer['name'] = $CFG->badges_defaultissuername;
     if (empty($issuer['name'])) {
         $issuer['name'] = $SITE->fullname ? $SITE->fullname : $SITE->shortname;
@@ -879,8 +876,7 @@ function badges_get_default_issuer() {
     $issuer['url'] = $issuerurl->out(false);
     $issuer['email'] = $CFG->badges_defaultissuercontact;
     $issuer['@context'] = OPEN_BADGES_V2_CONTEXT;
-    $issuerid = new moodle_url('/badges/issuer_json.php');
-    $issuer['id'] = $issuerid->out(false);
+    $issuer['id'] = $issuerurl->out(false);
     $issuer['type'] = OPEN_BADGES_V2_TYPE_ISSUER;
     return $issuer;
 }
@@ -1147,28 +1143,14 @@ function badge_assemble_notification(stdClass $badge) {
  * @return string
  */
 function badges_verify_site_backpack() {
-    global $CFG;
-
-    return badges_verify_backpack($CFG->badges_site_backpack);
-}
-
-/**
- * Attempt to authenticate with a backpack credentials and return an error
- * if the authentication fails.
- * If external backpacks are not enabled or the backpack version is different
- * from OBv2, this will not perform any test.
- *
- * @param int $backpackid Backpack identifier to verify.
- * @return string The result of the verification process.
- */
-function badges_verify_backpack(int $backpackid) {
     global $OUTPUT, $CFG;
 
     if (empty($CFG->badges_allowexternalbackpack)) {
         return '';
     }
 
-    $backpack = badges_get_site_backpack($backpackid);
+    $backpack = badges_get_site_backpack($CFG->badges_site_backpack);
+
     if (empty($backpack->apiversion) || ($backpack->apiversion == OPEN_BADGES_V2)) {
         $backpackapi = new \core_badges\backpack_api($backpack);
 
@@ -1188,6 +1170,5 @@ function badges_verify_backpack(int $backpackid) {
             return $OUTPUT->container($icon . $message, 'text-error');
         }
     }
-
     return '';
 }

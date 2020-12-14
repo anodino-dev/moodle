@@ -57,12 +57,14 @@
                     </div>
                     <div class="alloptions">
                         {{#sections}}
-                            <fieldset>
-                                <legend class="moduletypetitle">{{label}}</legend>
-                                {{#items}}
-                                    {{>core/chooser_item}}
-                                {{/items}}
-                            </fieldset>
+                            <div class="moduletypetitle">
+                                <label for="item_{{id}}">
+                                    <span class="typename">{{label}}</span>
+                                </label>
+                            </div>
+                            {{#items}}
+                                {{>core/chooser_item}}
+                            {{/items}}
                         {{/sections}}
                     </div>
                 </div>

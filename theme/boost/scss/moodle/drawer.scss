@@ -24,12 +24,8 @@ $drawer-offscreen-gutter: 20px !default;
     left: -($drawer-width + $drawer-offscreen-gutter);
 }
 
-#nav-drawer[aria-hidden=true] .list-group-item {
-    display: none;
-}
-
 /* Use a variable for the drawer background colors. */
-$drawer-bg: darken($body-bg, 5%) !default;
+$drawer-bg: $gray-lighter !default;
 
 [data-region="drawer"] {
     position: fixed;
@@ -40,7 +36,7 @@ $drawer-bg: darken($body-bg, 5%) !default;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     z-index: $zindex-dropdown - 1;
-    background-color: $drawer-bg;
+    background-color: darken($body-bg, 5%);
     -webkit-transition: right 0.5s ease, left 0.5s ease;
     -moz-transition: right 0.5s ease, left 0.5s ease;
     transition: right 0.5s ease, left 0.5s ease;

@@ -157,7 +157,6 @@ class mod_feedback_responses_table extends table_sql {
         $this->define_headers($tableheaders);
 
         $this->sortable(true, 'lastname', SORT_ASC);
-        $this->no_sorting('groups');
         $this->collapsible(true);
         $this->set_attribute('id', 'showentrytable');
 
@@ -296,7 +295,6 @@ class mod_feedback_responses_table extends table_sql {
         $columnscount = 0;
         $this->hasmorecolumns = max(0, count($items) - self::TABLEJOINLIMIT);
 
-        $headernamepostfix = !$this->is_downloading();
         // Add feedback response values.
         foreach ($items as $nr => $item) {
             if ($columnscount++ < self::TABLEJOINLIMIT) {
@@ -310,7 +308,7 @@ class mod_feedback_responses_table extends table_sql {
 
             $tablecolumns[] = "val{$nr}";
             $itemobj = feedback_get_item_class($item->typ);
-            $tableheaders[] = $itemobj->get_display_name($item, $headernamepostfix);
+            $tableheaders[] = $itemobj->get_display_name($item);
         }
 
         // Add 'Delete entry' column.

@@ -365,17 +365,13 @@ class auth_plugin_cas extends auth_plugin_ldap {
             return [];
         }
 
-        if ($this->config->auth_logo) {
-            $iconurl = moodle_url::make_pluginfile_url(
-                context_system::instance()->id,
-                'auth_cas',
-                'logo',
-                null,
-                null,
-                $this->config->auth_logo);
-        } else {
-            $iconurl = null;
-        }
+        $iconurl = moodle_url::make_pluginfile_url(
+            context_system::instance()->id,
+            'auth_cas',
+            'logo',
+            null,
+            '/',
+            $this->config->auth_logo);
 
         return [
             [

@@ -176,9 +176,6 @@ class assign {
      */
     private $mostrecentteamsubmission = null;
 
-    /** @var array Array of error messages encountered during the execution of assignment related operations. */
-    private $errors = array();
-
     /**
      * Constructor for the base assign class.
      *
@@ -312,24 +309,6 @@ class assign {
      */
     public function set_course(stdClass $course) {
         $this->course = $course;
-    }
-
-    /**
-     * Set error message.
-     *
-     * @param string $message The error message
-     */
-    protected function set_error_message(string $message) {
-        $this->errors[] = $message;
-    }
-
-    /**
-     * Get error messages.
-     *
-     * @return array The array of error messages
-     */
-    protected function get_error_messages(): array {
-        return $this->errors;
     }
 
     /**
@@ -615,14 +594,7 @@ class assign {
         // Now show the right view page.
         if ($action == 'redirect') {
             $nextpageurl = new moodle_url('/mod/assign/view.php', $nextpageparams);
-            $messages = '';
-            $messagetype = \core\output\notification::NOTIFY_INFO;
-            $errors = $this->get_error_messages();
-            if (!empty($errors)) {
-                $messages = html_writer::alist($errors, ['class' => 'mb-1 mt-1']);
-                $messagetype = \core\output\notification::NOTIFY_ERROR;
-            }
-            redirect($nextpageurl, $messages, null, $messagetype);
+            redirect($nextpageurl);
             return;
         } else if ($action == 'savegradingresult') {
             $message = get_string('gradingchangessaved', 'assign');
@@ -2495,7 +2467,7 @@ class assign {
         // Only ever send a max of one days worth of updates.
         $yesterday = time() - (24 * 3600);
         $timenow   = time();
-        $lastruntime = $DB->get_field('task_scheduled', 'lastruntime', array('component' => 'mod_assign'));
+        $lastcron = $DB->get_field('modules', 'lastcron', array('name' => 'assign'));
 
         // Collect all submissions that require mailing.
         // Submissions are included if all are true:
@@ -2667,10 +2639,10 @@ class assign {
         $sql = 'SELECT id
                     FROM {assign}
                     WHERE
-                        allowsubmissionsfromdate >= :lastruntime AND
+                        allowsubmissionsfromdate >= :lastcron AND
                         allowsubmissionsfromdate <= :timenow AND
                         alwaysshowdescription = 0';
-        $params = array('lastruntime' => $lastruntime, 'timenow' => $timenow);
+        $params = array('lastcron' => $lastcron, 'timenow' => $timenow);
         $newlyavailable = $DB->get_records_sql($sql, $params);
         foreach ($newlyavailable as $record) {
             $cm = get_coursemodule_from_instance('assign', $record->id, 0, false, MUST_EXIST);
@@ -3376,12 +3348,11 @@ class assign {
                                                       $this->show_intro(),
                                                       $this->get_course_module()->id,
                                                       get_string('quickgradingresult', 'assign')));
-        $gradingerror = in_array($message, $this->get_error_messages());
         $lastpage = optional_param('lastpage', null, PARAM_INT);
         $gradingresult = new assign_gradingmessage(get_string('quickgradingresult', 'assign'),
                                                    $message,
                                                    $this->get_course_module()->id,
-                                                   $gradingerror,
+                                                   false,
                                                    $lastpage);
         $o .= $this->get_renderer()->render($gradingresult);
         $o .= $this->view_footer();
@@ -6713,9 +6684,7 @@ class assign {
         $gradingmanager = get_grading_manager($this->get_context(), 'mod_assign', 'submissions');
         $controller = $gradingmanager->get_active_controller();
         if (!empty($controller)) {
-            $message = get_string('errorquickgradingvsadvancedgrading', 'assign');
-            $this->set_error_message($message);
-            return $message;
+            return get_string('errorquickgradingvsadvancedgrading', 'assign');
         }
 
         $users = array();
@@ -6749,9 +6718,7 @@ class assign {
         }
 
         if (empty($users)) {
-            $message = get_string('nousersselected', 'assign');
-            $this->set_error_message($message);
-            return $message;
+            return get_string('nousersselected', 'assign');
         }
 
         list($userids, $params) = $DB->get_in_or_equal(array_keys($users), SQL_PARAMS_NAMED);
@@ -6805,9 +6772,7 @@ class assign {
                     // handle hidden columns.
                     if ($plugin->is_quickgrading_modified($modified->userid, $grade)) {
                         if ((int)$current->lastmodified > (int)$modified->lastmodified) {
-                            $message = get_string('errorrecordmodified', 'assign');
-                            $this->set_error_message($message);
-                            return $message;
+                            return get_string('errorrecordmodified', 'assign');
                         } else {
                             $modifiedusers[$modified->userid] = $modified;
                             continue;
@@ -6842,9 +6807,7 @@ class assign {
                 $badattempt = (int)$current->attemptnumber != (int)$modified->attemptnumber;
                 if ($badmodified || $badattempt) {
                     // Error - record has been modified since viewing the page.
-                    $message = get_string('errorrecordmodified', 'assign');
-                    $this->set_error_message($message);
-                    return $message;
+                    return get_string('errorrecordmodified', 'assign');
                 } else {
                     $modifiedusers[$modified->userid] = $modified;
                 }
@@ -7919,10 +7882,7 @@ class assign {
         global $USER;
 
         if (!$this->can_edit_submission($userid, $USER->id)) {
-            $user = core_user::get_user($userid);
-            $message = get_string('usersubmissioncannotberemoved', 'assign', fullname($user));
-            $this->set_error_message($message);
-            return false;
+            print_error('nopermission');
         }
 
         if ($this->get_instance()->teamsubmission) {

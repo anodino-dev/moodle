@@ -91,6 +91,7 @@ if ($formaction == 'bulkchange.php') {
                     $columnnames = array(
                         'firstname' => get_string('firstname'),
                         'lastname' => get_string('lastname'),
+                        'email' => get_string('email'),
                     );
 
                     $identityfields = get_extra_user_fields($context);
@@ -105,7 +106,7 @@ if ($formaction == 'bulkchange.php') {
                         list($insql, $inparams) = $DB->get_in_or_equal($userids);
                     }
 
-                    $sql = "SELECT u.firstname, u.lastname" . $identityfieldsselect . "
+                    $sql = "SELECT u.firstname, u.lastname, u.email" . $identityfieldsselect . "
                               FROM {user} u
                              WHERE u.id $insql";
 

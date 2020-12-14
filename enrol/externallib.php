@@ -1166,6 +1166,94 @@ class core_enrol_external extends external_api {
             )
         );
     }
+    /**
+     * Returns description of unenrol_user_enrolment() parameters
+     *
+     * @return external_function_parameters
+     */
+    public static function unenrol_user_enrolment_ext_parameters() {
+        return new external_function_parameters(
+            array(
+                'userid' => new external_value(PARAM_INT, 'User ID'),
+                'courseid' => new external_value(PARAM_INT, 'Course ID')
+            )
+            );
+    }
+    
+    /**
+     * External function that unenrols a given user enrolment.
+     *
+     * @param int $ueid The user enrolment ID.
+     * @return array An array consisting of the processing result, errors.
+     */
+    public static function unenrol_user_enrolment_ext($userid,$courseid) {
+        global $CFG, $DB, $PAGE;
+        
+        $params = self::validate_parameters(self::unenrol_user_enrolment_ext_parameters(), [
+            'userid' => $userid,
+            'courseid' => $courseid            
+        ]);
+        
+        $result = false;
+        $errors = [];
+
+        $enrol = $DB->get_record('enrol', ['courseid' => $params['courseid'],'enrol' => 'manual'], '*', MUST_EXIST);
+        if ($enrol) {
+            $enrolid = $enrol->enrolid;
+        } else {
+            $validationerrors['invalidrequest'] = get_string('invalidrequest', 'enrol');
+        }
+        
+        $userenrolment = $DB->get_record('user_enrolments', ['userid' => $params['userid'],'enrolid' => $enrolid ], '*');
+        if ($userenrolment) {
+            $userid = $userenrolment->userid;
+            $course = get_course($courseid);
+            $context = context_course::instance($course->id);
+            self::validate_context($context);
+        } else {
+            $validationerrors['invalidrequest'] = get_string('invalidrequest', 'enrol');
+        }
+        
+        // If the userenrolment exists, unenrol the user.
+        if (!isset($validationerrors)) {
+            require_once($CFG->dirroot . '/enrol/locallib.php');
+            $manager = new course_enrolment_manager($PAGE, $course);
+            $result = $manager->unenrol_user($userenrolment);
+        } else {
+            foreach ($validationerrors as $key => $errormessage) {
+                $errors[] = (object)[
+                    'key' => $key,
+                    'message' => $errormessage
+                ];
+            }
+        }
+        
+        return [
+            'result' => $result,
+            'errors' => $errors,
+        ];
+    }
+    
+    /**
+     * Returns description of unenrol_user_enrolment() result value
+     *
+     * @return external_description
+     */
+    public static function unenrol_user_enrolment_ext_returns() {
+        return new external_single_structure(
+            array(
+                'result' => new external_value(PARAM_BOOL, 'True if the user\'s enrolment was successfully updated'),
+                'errors' => new external_multiple_structure(
+                    new external_single_structure(
+                        array(
+                            'key' => new external_value(PARAM_TEXT, 'The data that failed the validation'),
+                            'message' => new external_value(PARAM_TEXT, 'The error message'),
+                        )
+                        ), 'List of validation errors'
+                    ),
+            )
+            );
+    }
 }
 
 /**

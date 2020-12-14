@@ -140,7 +140,6 @@ function environment_get_errors($environment_results) {
         $type = $environment_result->getPart();
         $info = $environment_result->getInfo();
         $status = $environment_result->getStatus();
-        $plugin = $environment_result->getPluginName();
         $error_code = $environment_result->getErrorCode();
 
         $a = new stdClass();
@@ -210,13 +209,7 @@ function environment_get_errors($environment_results) {
         // Append the restrict if there is some
         $feedbacktext .= $environment_result->strToReport($environment_result->getRestrictStr(), 'error');
 
-        if ($plugin === '') {
-            $report = '[' . get_string('coresystem') . '] ' . $report;
-        } else {
-            $report = '[' . $plugin . '] ' . $report;
-        }
-
-        $report .= ' - ' . html_to_text($feedbacktext);
+        $report .= html_to_text($feedbacktext);
 
         if ($environment_result->getPart() == 'custom_check'){
             $errors[] = array($info, $report);

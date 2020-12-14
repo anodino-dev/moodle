@@ -111,12 +111,12 @@ Feature: View course participants
     And I am on "Course 1" course homepage
     And I navigate to course participants
     And I follow "Email address"
-    When I click on "2" "link" in the "//nav[@aria-label='Page']" "xpath_element"
+    When I follow "2"
     Then I should not see "student0x@example.com"
     And I should not see "student19x@example.com"
     And I should see "teacher1x@example.com"
     And I follow "Email address"
-    And I click on "2" "link" in the "//nav[@aria-label='Page']" "xpath_element"
+    And I follow "2"
     And I should not see "teacher1x@example.com"
     And I should not see "student19x@example.com"
     And I should not see "student1x@example.com"
@@ -130,6 +130,7 @@ Feature: View course participants
     When I log in as "teacher1x"
     And I am on "Course 1" course homepage
     And I navigate to course participants
+    And I follow "Surname"
     And I press "Select all users on this page"
     Then I should not see "Student 9x"
     And the field with xpath "//tbody//tr[1]//input[@class='usercheckbox']" matches value "1"

@@ -2,19 +2,19 @@
 # process (which uses our internal CI system) this file is here for the benefit
 # of community developers git clones - see MDL-51458.
 
+sudo: required
+
+# We currently disable Travis notifications entirely until https://github.com/travis-ci/travis-ci/issues/4976
+# is fixed.
 notifications:
-  email:
-    if: env(MOODLE_EMAIL) != no
+  email: false
 
 language: php
-
-os: linux
 
 dist: xenial
 
 services:
     - mysql
-    - docker
 
 php:
     # We only run the highest and lowest supported versions to reduce the load on travis-ci.org.
@@ -41,7 +41,7 @@ env:
     # Perform an upgrade test too.
     - DB=pgsql    TASK=UPGRADE
 
-jobs:
+matrix:
     # Enable fast finish.
     # This will fail the build if a single job fails (except those in allow_failures).
     # It will not stop the jobs from running.
@@ -61,9 +61,8 @@ cache:
       - $HOME/.npm
 
 before_install:
-    - docker run -d -p 127.0.0.1:8080:80 --name exttests moodlehq/moodle-exttests
     # Avoid IPv6 default binding as service (causes redis not to start).
-    - sudo service redis-server start --bind 127.0.0.1
+    sudo service redis-server start --bind 127.0.0.1
 
 install:
     - >
@@ -170,12 +169,6 @@ before_script:
           -e "/require_once/i \\\$CFG->phpunit_dataroot = '\/home\/travis\/roots\/phpunit';" \
           -e "/require_once/i \\\$CFG->phpunit_prefix = 'p_';" \
           config.php ;
-        # Enable test external resources
-        sed -i \
-          -e "/require_once/i \\define('TEST_EXTERNAL_FILES_HTTP_URL', 'http://127.0.0.1:8080');" \
-          -e "/require_once/i \\define('TEST_EXTERNAL_FILES_HTTPS_URL', 'http://127.0.0.1:8080');" \
-          config.php ;
-
         # Redis cache store tests
         sed -i \
           -e "/require_once/i \\define('TEST_CACHESTORE_REDIS_TESTSERVERS', '127.0.0.1');" \
@@ -290,12 +283,4 @@ script:
           echo "$result"
           exit 1 ;
         fi
-      fi
-
-after_script:
-    - >
-      if [ "$TASK" = 'PHPUNIT' ];
-      then
-        EXTTESTS_HITS=$(docker logs exttests 2>&1 | grep -Fv -e 'AH00558' -e '[pid 1]' | wc -l)
-        echo -e "\nTest local resources number of hits: ${EXTTESTS_HITS}.\n"
       fi

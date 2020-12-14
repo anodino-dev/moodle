@@ -665,7 +665,7 @@ class moodle_content_writer implements content_writer {
         $navigationpage = new \core_privacy\output\exported_navigation_page(current($richtree));
         $navigationhtml = $output->render_navigation($navigationpage);
 
-        $systemname = format_string($SITE->fullname, true, ['context' => \context_system::instance()]);
+        $systemname = $SITE->fullname;
         $fullusername = fullname($USER);
         $siteurl = $CFG->wwwroot;
 

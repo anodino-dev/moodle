@@ -74,7 +74,7 @@ class behat_general extends behat_base {
      * @Given /^I am on homepage$/
      */
     public function i_am_on_homepage() {
-        $this->execute('behat_general::i_visit', ['/']);
+        $this->getSession()->visit($this->locate_path('/'));
     }
 
     /**
@@ -83,7 +83,7 @@ class behat_general extends behat_base {
      * @Given /^I am on site homepage$/
      */
     public function i_am_on_site_homepage() {
-        $this->execute('behat_general::i_visit', ['/?redirect=0']);
+        $this->getSession()->visit($this->locate_path('/?redirect=0'));
     }
 
     /**
@@ -92,7 +92,7 @@ class behat_general extends behat_base {
      * @Given /^I am on course index$/
      */
     public function i_am_on_course_index() {
-        $this->execute('behat_general::i_visit', ['/course/index.php']);
+        $this->getSession()->visit($this->locate_path('/course/index.php'));
     }
 
     /**
@@ -200,7 +200,8 @@ class behat_general extends behat_base {
         // unnamed window (presumably the main window) to some other named
         // window, then we first set the main window name to a conventional
         // value that we can later use this name to switch back.
-        $this->execute_script('if (window.name == "") window.name = "' . self::MAIN_WINDOW_NAME . '"');
+        $this->getSession()->executeScript(
+                'if (window.name == "") window.name = "' . self::MAIN_WINDOW_NAME . '"');
 
         $this->getSession()->switchToWindow($windowname);
     }
@@ -871,7 +872,7 @@ class behat_general extends behat_base {
     return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
 })()
 EOF;
-            $ok = $this->evaluate_script($js);
+            $ok = $this->getSession()->getDriver()->evaluateScript($js);
         } else {
 
             // Using following xpath axe to find it.
@@ -989,7 +990,11 @@ EOF;
             // Using the spin method as we want a reduced timeout but there is no need for a 0.1 seconds interval
             // because in the optimistic case we will timeout.
             // If all goes good it will throw an ElementNotFoundExceptionn that we will catch.
-            return $this->find($selectortype, $element, $exception, false, behat_base::get_reduced_timeout());
+            $this->spin(
+                function($context, $args) use ($selectortype, $element) {
+                    return $this->find($selectortype, $element);
+                }, [], behat_base::get_reduced_timeout(), $exception, false
+            );
         } catch (ElementNotFoundException $e) {
             // We expect the element to not be found.
             return;
@@ -1005,7 +1010,7 @@ EOF;
      * @Given /^I trigger cron$/
      */
     public function i_trigger_cron() {
-        $this->execute('behat_general::i_visit', ['/admin/cron.php']);
+        $this->getSession()->visit($this->locate_path('/admin/cron.php'));
     }
 
     /**
@@ -1556,12 +1561,11 @@ EOF;
 
         $this->pageloaddetectionrunning = true;
 
-        $this->execute_script(
-            'var span = document.createElement("span");
-            span.setAttribute("data-rel", "' . self::PAGE_LOAD_DETECTION_STRING . '");
-            span.setAttribute("style", "display: none;");
-            document.body.appendChild(span);'
-        );
+        $session->executeScript(
+                'var span = document.createElement("span");
+                span.setAttribute("data-rel", "' . self::PAGE_LOAD_DETECTION_STRING . '");
+                span.setAttribute("style", "display: none;");
+                document.body.appendChild(span);');
     }
 
     /**
@@ -1759,7 +1763,7 @@ EOF;
         $xpath = addslashes_js($element->getXpath());
         $script = 'return (function() { return document.activeElement === document.evaluate("' . $xpath . '",
                 document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue; })(); ';
-        $targetisfocused = $this->evaluate_script($script);
+        $targetisfocused = $this->getSession()->evaluateScript($script);
         if ($not == ' not') {
             if ($targetisfocused) {
                 throw new ExpectationException("$nodeelement $nodeselectortype is focused", $this->getSession());
@@ -1791,7 +1795,7 @@ EOF;
         $xpath = addslashes_js($element->getXpath());
         $script = 'return (function() { return document.activeElement === document.evaluate("' . $xpath . '",
                 document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue; })(); ';
-        $targetisfocused = $this->evaluate_script($script);
+        $targetisfocused = $this->getSession()->evaluateScript($script);
         if ($not == ' not') {
             if ($targetisfocused) {
                 throw new ExpectationException("$nodeelement $nodeselectortype is focused", $this->getSession());
@@ -1832,17 +1836,5 @@ EOF;
         // Gets the node based on the requested selector type and locator.
         $node = $this->get_selected_node($selectortype, $element);
         $this->js_trigger_click($node);
-    }
-
-    /**
-     * Visit a local URL relative to the behat root.
-     *
-     * @When I visit :localurl
-     *
-     * @param string|moodle_url $localurl The URL relative to the behat_wwwroot to visit.
-     */
-    public function i_visit($localurl): void {
-        $localurl = new moodle_url($localurl);
-        $this->getSession()->visit($this->locate_path($localurl->out_as_local_url(false)));
     }
 }

@@ -1191,7 +1191,7 @@ class course_enrolment_manager {
         );
 
         foreach ($extrafields as $field) {
-            $details[$field] = s($user->{$field});
+            $details[$field] = $user->{$field};
         }
 
         // Last time user has accessed the site.

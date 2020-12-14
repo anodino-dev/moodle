@@ -26,8 +26,10 @@
     </h2>
     <div>{{{template.description}}}</div>
     {{#canmanagetemplatecompetencies}}
-    <div data-region="actions" class="my-4">
-        <button disabled class="btn btn-secondary">{{#str}}addtemplatecompetencies, tool_lp{{/str}}</button>
+    <div data-region="actions" class="clearfix">
+        <div class="float-left">
+            <button disabled class="btn btn-secondary">{{#str}}addtemplatecompetencies, tool_lp{{/str}}</button>
+        </div>
     </div>
     {{/canmanagetemplatecompetencies}}
     <h3 class="mt-1">{{#str}}templatecompetencies, tool_lp{{/str}}</h3>
@@ -39,7 +41,7 @@
             <div class="drag-parentnode">
                 {{#competencies}}
                 <div class="drag-samenode" data-id="{{competency.id}}">
-                    <div class="border p-2 mb-2">
+                    <div class="card">
                         {{#canmanagetemplatecompetencies}}
                         <span class="drag-handlecontainer float-left"></span>
                         <div class="float-sm-right">

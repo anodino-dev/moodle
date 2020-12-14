@@ -713,6 +713,7 @@ class external extends external_api {
 
         list($sql, $params) = users_search_sql($query, '', false, $extrafields, $excludedusers);
         $users = $DB->get_records_select('user', $sql, $params, $sort, $fields, 0, 30);
+
         $useroptions = [];
         foreach ($users as $user) {
             $useroption = (object)[
@@ -721,10 +722,9 @@ class external extends external_api {
             ];
             $useroption->extrafields = [];
             foreach ($extrafields as $extrafield) {
-                // Sanitize the extra fields to prevent potential XSS exploit.
                 $useroption->extrafields[] = (object)[
                     'name' => $extrafield,
-                    'value' => s($user->$extrafield)
+                    'value' => $user->$extrafield
                 ];
             }
             $useroptions[$user->id] = $useroption;

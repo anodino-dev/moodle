@@ -219,7 +219,7 @@
 
 .gradingform_rubric.editor .addcriterion input,
 .gradingform_rubric.editor .addlevel input {
-    background: #fff url([[pix:t/add]]) no-repeat 7px 8px;
+    background: transparent url([[pix:t/add]]) no-repeat top left;
     display: block;
     color: #555;
     font-weight: bold;
@@ -227,6 +227,7 @@
 }
 
 .gradingform_rubric.editor .addcriterion input {
+    background-position: 5px 8px;
     height: 30px;
     line-height: 29px;
     margin-bottom: 14px;
@@ -235,7 +236,11 @@
 }
 
 .gradingform_rubric.editor .addlevel input {
-    padding-left: 24px;
+    background-position: 5px 5px;
+    height: 25px;
+    line-height: 24px;
+    margin-bottom: 45px;
+    padding-left: 18px;
     padding-right: 8px;
 }
 

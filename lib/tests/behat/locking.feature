@@ -37,7 +37,8 @@ Feature: Context freezing apply to child contexts
       | student1  | courseb   | student        |
 
   Scenario: Freeze course module module should freeze just that module
-    Given I am on the "courseaa1" "Course" page logged in as "admin"
+    Given I log in as "admin"
+    And I am on "courseaa1" course homepage
     And I follow "faa1"
     And "Add a new discussion topic" "link" should exist
     When I follow "Freeze this context"
@@ -57,7 +58,8 @@ Feature: Context freezing apply to child contexts
     Then "Add a new discussion topic" "link" should exist
 
     And I log out
-    When I am on the "courseaa1" "Course" page logged in as "teacher"
+    When I log in as "teacher"
+    And I am on "courseaa1" course homepage
     And I follow "faa1"
     Then "Add a new discussion topic" "link" should not exist
     When I am on "courseaa1" course homepage
@@ -74,7 +76,8 @@ Feature: Context freezing apply to child contexts
     And "Add a new discussion topic" "link" should exist
 
     And I log out
-    When I am on the "courseaa1" "Course" page logged in as "student1"
+    When I log in as "student1"
+    And I am on "courseaa1" course homepage
     And I follow "faa1"
     Then "Add a new discussion topic" "link" should not exist
     When I am on "courseaa1" course homepage
@@ -88,7 +91,8 @@ Feature: Context freezing apply to child contexts
     Then "Add a new discussion topic" "link" should exist
 
   Scenario: Freeze course should freeze all children
-    Given I am on the "courseaa1" "Course" page logged in as "admin"
+    Given I log in as "admin"
+    And I am on "courseaa1" course homepage
     And I should see "Turn editing on"
     When I follow "Freeze this context"
     And I click on "Continue" "button"
@@ -110,7 +114,8 @@ Feature: Context freezing apply to child contexts
     Then "Add a new discussion topic" "link" should exist
 
     And I log out
-    When I am on the "courseaa1" "Course" page logged in as "teacher"
+    When I log in as "teacher"
+    And I am on "courseaa1" course homepage
     And I follow "faa1"
     Then "Add a new discussion topic" "link" should not exist
     When I am on "courseaa1" course homepage
@@ -127,7 +132,8 @@ Feature: Context freezing apply to child contexts
     Then "Add a new discussion topic" "link" should exist
 
     And I log out
-    When I am on the "courseaa1" "Course" page logged in as "student1"
+    When I log in as "student1"
+    And I am on "courseaa1" course homepage
     And I follow "faa1"
     Then "Add a new discussion topic" "link" should not exist
     When I am on "courseaa1" course homepage
@@ -165,7 +171,8 @@ Feature: Context freezing apply to child contexts
     Then "Add a new discussion topic" "link" should exist
 
     And I log out
-    When I am on the "courseaa1" "Course" page logged in as "teacher"
+    When I log in as "teacher"
+    And I am on "courseaa1" course homepage
     Then I should not see "Turn editing on"
     And I follow "faa1"
     Then "Add a new discussion topic" "link" should not exist
@@ -183,7 +190,8 @@ Feature: Context freezing apply to child contexts
     Then "Add a new discussion topic" "link" should exist
 
     And I log out
-    When I am on the "courseaa1" "Course" page logged in as "student1"
+    When I log in as "student1"
+    And I am on "courseaa1" course homepage
     And I follow "faa1"
     Then "Add a new discussion topic" "link" should not exist
     When I am on "courseaa1" course homepage

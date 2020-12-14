@@ -141,7 +141,6 @@ class author extends exporter {
         $authorcontextid = $this->authorcontextid;
         $urlfactory = $this->related['urlfactory'];
         $context = $this->related['context'];
-        $forum = $this->related['forum'];
 
         if ($this->canview) {
             $groups = array_map(function($group) use ($urlfactory, $context) {
@@ -170,7 +169,7 @@ class author extends exporter {
                 'fullname' => $author->get_full_name(),
                 'groups' => $groups,
                 'urls' => [
-                    'profile' => ($urlfactory->get_author_profile_url($author, $forum->get_course_id()))->out(false),
+                    'profile' => ($urlfactory->get_author_profile_url($author))->out(false),
                     'profileimage' => ($urlfactory->get_author_profile_image_url($author, $authorcontextid))->out(false)
                 ]
             ];
@@ -196,8 +195,7 @@ class author extends exporter {
     protected static function define_related() {
         return [
             'urlfactory' => 'mod_forum\local\factories\url',
-            'context' => 'context',
-            'forum' => 'mod_forum\local\entities\forum',
+            'context' => 'context'
         ];
     }
 }

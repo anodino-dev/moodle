@@ -12,7 +12,9 @@ Feature: Close modals by clicking outside them
     And the following "activities" exist:
       | activity | name           | intro                 | course | idnumber |
       | quiz     | Test quiz name | Test quiz description | C1     | quiz1    |
-    And I am on the "quiz1" "Activity" page logged in as "admin"
+    And I log in as "admin"
+    And I am on "Course 1" course homepage
+    And I follow "Test quiz name"
     And I click on "Edit quiz" "button"
     And I click on "Add" "link"
     And I click on "a new question" "link"
@@ -41,7 +43,9 @@ Feature: Close modals by clicking outside them
     And the following "activities" exist:
       | activity | name           | intro                 | course | idnumber |
       | quiz     | Test quiz name | Test quiz description | C1     | quiz1    |
-    And I am on the "quiz1" "Activity" page logged in as "admin"
+    And I log in as "admin"
+    And I am on "Course 1" course homepage
+    And I follow "Test quiz name"
     And I click on "Edit quiz" "button"
     And I click on "Help with Editing quiz" "icon"
     And I should see "More help"

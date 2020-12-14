@@ -108,11 +108,12 @@ define(['jquery'], function($) {
         moduleTransitions[key].forEach(function(pair) {
             var eventStart = pair.start + '.bs.' + key;
             var eventEnd = pair.end + '.bs.' + key;
-            $(document.body).on(eventStart, function(e) {
+            $(document.body).on(eventStart, function() {
                 M.util.js_pending(eventEnd);
-                $(e.target).one(eventEnd, function() {
-                    M.util.js_complete(eventEnd);
-                });
+            });
+
+            $(document.body).on(eventEnd, function() {
+                M.util.js_complete(eventEnd);
             });
         });
     });

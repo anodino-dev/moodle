@@ -50,17 +50,6 @@ class behat_mod_forum extends behat_base {
     }
 
     /**
-     * Adds a Q&A discussion to the Q&A-type forum specified by it's name with the provided table data.
-     *
-     * @Given /^I add a new question to "(?P<forum_name_string>(?:[^"]|\\")*)" forum with:$/
-     * @param string $forumname
-     * @param TableNode $table
-     */
-    public function i_add_a_new_question_to_forum_with($forumname, TableNode $table) {
-        $this->add_new_discussion($forumname, $table, get_string('addanewquestion', 'forum'));
-    }
-
-    /**
      * Adds a discussion to the forum specified by it's name with the provided table data (usually Subject and Message). The step begins from the forum's course page.
      *
      * @Given /^I add a new discussion to "(?P<forum_name_string>(?:[^"]|\\")*)" forum with:$/
@@ -167,7 +156,7 @@ class behat_mod_forum extends behat_base {
         // Navigate to forum.
         $this->execute('behat_general::click_link', $this->escape($forumname));
         $this->execute('behat_general::click_link', $buttonstr);
-        $this->execute('behat_forms::press_button', get_string('showadvancededitor'));
+        $this->execute('behat_forms::press_button', get_string('advanced'));
 
         $this->fill_new_discussion_form($table);
     }
@@ -217,6 +206,6 @@ class behat_mod_forum extends behat_base {
         global $DB;
         $post = $DB->get_record("forum_posts", array("subject" => $postsubject), 'id', MUST_EXIST);
         $url = new moodle_url('/mod/forum/post.php', ['reply' => $post->id]);
-        $this->execute('behat_general::i_visit', [$url]);
+        $this->getSession()->visit($this->locate_path($url->out_as_local_url(false)));
     }
 }

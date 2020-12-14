@@ -68,7 +68,9 @@ Feature: Initials bar
     Given the following "activities" exist:
       | activity | course | idnumber | name           | intro                       | assignsubmission_onlinetext_enabled | assignsubmission_file_enabled |
       | assign   | C1     | assign1  | TestAssignment | Test assignment description | 0                                   | 0                             |
-    And I am on the "assign1" "Activity" page logged in as "teacher"
+    And I log in as "teacher"
+    And I am on "Course 1" course homepage
+    And I follow "TestAssignment"
     When I navigate to "View all submissions" in current page administration
     And ".initialbarall.page-item.active" "css_element" should exist in the ".initialbar.firstinitial" "css_element"
     And ".initialbarall.page-item.active" "css_element" should exist in the ".initialbar.lastinitial" "css_element"
@@ -93,7 +95,8 @@ Feature: Initials bar
     And I should not see "Astudent Astudent"
     And I should see "Bstudent Astudent"
     And I should not see "Cstudent Cstudent"
-    And I am on the "assign1" "Activity" page
+    And I am on "Course 1" course homepage
+    And I follow "TestAssignment"
     When I navigate to "View all submissions" in current page administration
     And ".initialbarall.page-item.active" "css_element" should not exist in the ".initialbar.firstinitial" "css_element"
     And ".initialbarall.page-item.active" "css_element" should not exist in the ".initialbar.lastinitial" "css_element"
@@ -123,7 +126,9 @@ Feature: Initials bar
     Given the following "activities" exist:
       | activity | course | idnumber | name           | intro                       | assignsubmission_onlinetext_enabled | assignsubmission_file_enabled |
       | assign   | C1     | assign1  | TestAssignment | Test assignment description | 0                                   | 0                             |
-    And I am on the "assign1" "Activity" page logged in as "teacher"
+    And I log in as "teacher"
+    And I am on "Course 1" course homepage
+    And I follow "TestAssignment"
     When I navigate to "View all submissions" in current page administration
     And I select "View gradebook" from the "jump" singleselect
     And ".initialbarall.page-item.active" "css_element" should exist in the ".initialbar.firstinitial" "css_element"
@@ -149,7 +154,8 @@ Feature: Initials bar
     And I should not see "Astudent Astudent"
     And I should see "Bstudent Astudent"
     And I should not see "Cstudent Cstudent"
-    And I am on the "assign1" "Activity" page
+    And I am on "Course 1" course homepage
+    And I follow "TestAssignment"
     When I navigate to "View all submissions" in current page administration
     And I select "View gradebook" from the "jump" singleselect
     And ".initialbarall.page-item.active" "css_element" should not exist in the ".initialbar.firstinitial" "css_element"
@@ -180,11 +186,14 @@ Feature: Initials bar
     Given the following "activities" exist:
       | activity | course | idnumber | name           | intro                       | assignsubmission_onlinetext_enabled | assignsubmission_file_enabled |
       | assign   | C1     | assign1  | TestAssignment | Test assignment description | 0                                   | 0                             |
-    And I am on the "C1" "Course" page logged in as "student1"
+    And I log in as "student1"
+    And I am on "Course 1" course homepage
     And I log out
-    And I am on the "C1" "Course" page logged in as "student2"
+    And I log in as "student2"
+    And I am on "Course 1" course homepage
     And I log out
-    And I am on the "C1" "Course" page logged in as "teacher"
+    And I log in as "teacher"
+    And I am on "Course 1" course homepage
     And I follow "Participants"
     And ".initialbarall.page-item.active" "css_element" should exist in the ".initialbar.firstinitial" "css_element"
     And ".initialbarall.page-item.active" "css_element" should exist in the ".initialbar.lastinitial" "css_element"
@@ -240,7 +249,9 @@ Feature: Initials bar
     Given the following "activities" exist:
       | activity | course | idnumber | name           | intro                       | assignsubmission_onlinetext_enabled | assignsubmission_file_enabled |
       | assign   | C1     | assign1  | TestAssignment | Test assignment description | 0                                   | 0                             |
-    And I am on the "assign1" "Activity" page logged in as "admin"
+    And I log in as "admin"
+    And I am on "Course 1" course homepage
+    And I follow "TestAssignment"
     And I navigate to "Edit settings" in current page administration
     And I expand all fieldsets
     And I set the field "Completion tracking" to "1"
@@ -250,7 +261,8 @@ Feature: Initials bar
     And I click on "Assignment - TestAssignment" "checkbox"
     And I click on "Save changes" "button"
     And I log out
-    And I am on the "C1" "Course" page logged in as "teacher"
+    And I log in as "teacher"
+    And I am on "Course 1" course homepage
     And I navigate to "Reports > Activity completion" in current page administration
     And ".initialbarall.page-item.active" "css_element" should exist in the ".initialbar.firstinitial" "css_element"
     And ".initialbarall.page-item.active" "css_element" should exist in the ".initialbar.lastinitial" "css_element"

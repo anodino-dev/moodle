@@ -86,7 +86,9 @@ if ($form = $import_form->get_data()) {
     // work out if this is an uploaded file
     // or one from the filesarea.
     $realfilename = $import_form->get_new_filename('newfile');
-    $importfile = make_request_directory() . "/{$realfilename}";
+
+    $importfile = "{$CFG->tempdir}/questionimport/{$realfilename}";
+    make_temp_directory('questionimport');
     if (!$result = $import_form->save_file('newfile', $importfile, true)) {
         throw new moodle_exception('uploadproblem');
     }

@@ -28,9 +28,8 @@ define([
     'core/str',
     'core/modal_factory',
     'core/modal_events',
-    'core/templates',
-    'core/pending'],
-function($, Ajax, Notification, Str, ModalFactory, ModalEvents, Templates, Pending) {
+    'core/templates'],
+function($, Ajax, Notification, Str, ModalFactory, ModalEvents, Templates) {
 
     /**
      * List of action selectors.
@@ -119,7 +118,6 @@ function($, Ajax, Notification, Str, ModalFactory, ModalEvents, Templates, Pendi
         });
 
         $(ACTIONS.CONTACT_DPO).click(function(e) {
-            var pendingPromise = new Pending('dataprivacy/crud:initModal:contactdpo');
             e.preventDefault();
 
             var replyToEmail = $(this).data('replytoemail');
@@ -148,11 +146,8 @@ function($, Ajax, Notification, Str, ModalFactory, ModalEvents, Templates, Pendi
                     type: ModalFactory.types.SAVE_CANCEL,
                     large: true
                 });
-            }).then(function(modal) {
+            }).done(function(modal) {
                 modal.setSaveButtonText(sendButtonText);
-
-                // Show the modal!
-                modal.show();
 
                 // Handle send event.
                 modal.getRoot().on(ModalEvents.save, function(e) {
@@ -174,9 +169,9 @@ function($, Ajax, Notification, Str, ModalFactory, ModalEvents, Templates, Pendi
                     modal.destroy();
                 });
 
-                return;
-            }).then(pendingPromise.resolve)
-            .catch(Notification.exception);
+                // Show the modal!
+                modal.show();
+            }).fail(Notification.exception);
         });
     };
 

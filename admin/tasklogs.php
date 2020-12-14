@@ -49,8 +49,6 @@ $logid = optional_param('logid', null, PARAM_INT);
 $download = optional_param('download', false, PARAM_BOOL);
 
 if (null !== $logid) {
-    // Raise memory limit in case the log is large.
-    raise_memory_limit(MEMORY_HUGE);
     $log = $DB->get_record('task_log', ['id' => $logid], '*', MUST_EXIST);
 
     if ($download) {
@@ -67,7 +65,7 @@ $renderer = $PAGE->get_renderer('tool_task');
 echo $OUTPUT->header();
 echo $OUTPUT->render_from_template('core_admin/tasklogs', (object) [
     'action' => $pageurl->out(),
-    'filter' => htmlentities($filter),
+    'filter' => $filter,
     'resultfilteroptions' => [
         (object) [
             'value' => -1,

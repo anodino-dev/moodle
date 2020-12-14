@@ -98,6 +98,17 @@
     }
 }
 
+.gradingform_rubric.editor {
+    .addlevel,
+    .addcriterion {
+        input {
+            // Fallback for IE8: we use Bootstrap 2's button styles normally, but
+            // IE8 ignores background-image: linear-gradient rules.
+            background: #fff none no-repeat top left;
+        }
+    }
+}
+
 #rubric-rubric {
     &.gradingform_rubric {
         #rubric-criteria {
@@ -176,14 +187,13 @@
                 }
 
                 .addlevel {
-                    vertical-align: top;
-                    padding-top: 6px;
+                    vertical-align: middle;
 
                     input {
-                        font-weight: bold;
+                        @extend .btn;
+                        background-position: 0 0;
                         height: 30px;
-                        line-height: 1rem;
-                        padding-left: 24px;
+                        margin-right: 5px;
                     }
                 }
             }

@@ -91,12 +91,8 @@ class behat_base extends Behat\MinkExtension\Context\RawMinkContext {
 
     /**
      * The JS code to check that the page is ready.
-     *
-     * The document must be complete and either M.util.pending_js must be empty, or it must not be defined at all.
      */
-    const PAGE_READY_JS = "document.readyState === 'complete' && " .
-        "(typeof M !== 'object' || typeof M.util !== 'object' || " .
-        "typeof M.util.pending_js === 'undefined' || M.util.pending_js.length === 0)";
+    const PAGE_READY_JS = '(typeof M !== "undefined" && M.util && M.util.pending_js && !Boolean(M.util.pending_js.length)) && (document.readyState === "complete")';
 
     /**
      * Locates url, based on provided path.
@@ -123,11 +119,6 @@ class behat_base extends Behat\MinkExtension\Context\RawMinkContext {
      * @return NodeElement
      */
     protected function find($selector, $locator, $exception = false, $node = false, $timeout = false) {
-        if ($selector === 'NodeElement' && is_a($locator, NodeElement::class)) {
-            // Support a NodeElement being passed in for use in step chaining.
-            return $locator;
-        }
-
         // Returns the first match.
         $items = $this->find_all($selector, $locator, $exception, $node, $timeout);
         return count($items) ? reset($items) : null;
@@ -347,11 +338,20 @@ class behat_base extends Behat\MinkExtension\Context\RawMinkContext {
         if (!$timeout) {
             $timeout = self::get_timeout();
         }
+        if ($microsleep) {
+            // Will sleep 1/10th of a second by default for self::get_timeout() seconds.
+            $loops = $timeout * 10;
+        } else {
+            // Will sleep for self::get_timeout() seconds.
+            $loops = $timeout;
+        }
 
-        $start = microtime(true);
-        $end = $start + $timeout;
+        // DOM will never change on non-javascript case; do not wait or try again.
+        if (!$this->running_javascript()) {
+            $loops = 1;
+        }
 
-        do {
+        for ($i = 0; $i < $loops; $i++) {
             // We catch the exception thrown by the step definition to execute it again.
             try {
                 // We don't check with !== because most of the time closures will return
@@ -367,13 +367,14 @@ class behat_base extends Behat\MinkExtension\Context\RawMinkContext {
                 }
             }
 
-            if (!$this->running_javascript()) {
-                break;
+            if ($this->running_javascript()) {
+                if ($microsleep) {
+                    usleep(100000);
+                } else {
+                    sleep(1);
+                }
             }
-
-            usleep(100000);
-
-        } while (microtime(true) < $end);
+        }
 
         // Using coding_exception as is a development issue if no exception has been provided.
         if (!$exception) {
@@ -486,45 +487,12 @@ class behat_base extends Behat\MinkExtension\Context\RawMinkContext {
     }
 
     /**
-     * Whether Javascript is available in the current Session.
+     * Returns whether the scenario is running in a browser that can run Javascript or not.
      *
      * @return boolean
      */
     protected function running_javascript() {
-        return self::running_javascript_in_session($this->getSession());
-    }
-
-    /**
-     * Require that javascript be available in the current Session.
-     *
-     * @throws DriverException
-     */
-    protected function require_javascript() {
-        return self::require_javascript_in_session($this->getSession());
-    }
-
-    /**
-     * Whether Javascript is available in the specified Session.
-     *
-     * @param Session $session
-     * @return boolean
-     */
-    protected static function running_javascript_in_session(Session $session): bool {
-        return get_class($session->getDriver()) !== 'Behat\Mink\Driver\GoutteDriver';
-    }
-
-    /**
-     * Require that javascript be available for the specified Session.
-     *
-     * @param Session $session
-     * @throws DriverException
-     */
-    protected static function require_javascript_in_session(Session $session): void {
-        if (self::running_javascript_in_session($session)) {
-            return;
-        }
-
-        throw new DriverException('Javascript is required');
+        return get_class($this->getSession()->getDriver()) !== 'Behat\Mink\Driver\GoutteDriver';
     }
 
     /**
@@ -539,7 +507,7 @@ class behat_base extends Behat\MinkExtension\Context\RawMinkContext {
         }
 
         // Check on page to see if it's an app page. Safest way is to look for added JavaScript.
-        return $this->evaluate_script('return typeof window.behat') === 'object';
+        return $this->getSession()->evaluateScript('typeof window.behat') === 'object';
     }
 
     /**
@@ -775,18 +743,14 @@ class behat_base extends Behat\MinkExtension\Context\RawMinkContext {
             // The window inner height will be as specified, which means the available viewport will
             // actually be smaller if there is a horizontal scrollbar. We assume that horizontal
             // scrollbars are rare so this doesn't matter.
-            $js = <<<EOF
-return (function() {
-    var before = document.body.style.overflowY;
-    document.body.style.overflowY = "scroll";
-    var result = {};
-    result.x = window.outerWidth - document.body.offsetWidth;
-    result.y = window.outerHeight - window.innerHeight;
-    document.body.style.overflowY = before;
-    return result;
-})();
-EOF;
-            $offset = $this->evaluate_script($js);
+            $offset = $this->getSession()->getDriver()->evaluateScript(
+                    'return (function() { var before = document.body.style.overflowY;' .
+                    'document.body.style.overflowY = "scroll";' .
+                    'var result = {};' .
+                    'result.x = window.outerWidth - document.body.offsetWidth;' .
+                    'result.y = window.outerHeight - window.innerHeight;' .
+                    'document.body.style.overflowY = before;' .
+                    'return result; })();');
             $width += $offset['x'];
             $height += $offset['y'];
         }
@@ -822,17 +786,21 @@ EOF;
             try {
                 $jscode = trim(preg_replace('/\s+/', ' ', '
                     return (function() {
-                        if (document.readyState !== "complete") {
-                            return "incomplete";
-                        }
-
-                        if (typeof M !== "object" || typeof M.util !== "object" || typeof M.util.pending_js === "undefined") {
+                        if (typeof M === "undefined") {
+                            if (document.readyState === "complete") {
+                                return "";
+                            } else {
+                                return "incomplete";
+                            }
+                        } else if (' . self::PAGE_READY_JS . ') {
                             return "";
+                        } else if (typeof M.util !== "undefined") {
+                            return M.util.pending_js.join(":");
+                        } else {
+                            return "incomplete"
                         }
-
-                        return M.util.pending_js.join(":");
-                    })()'));
-                $pending = self::evaluate_script_in_session($session, $jscode);
+                    }());'));
+                $pending = $session->evaluateScript($jscode);
             } catch (NoSuchWindow $nsw) {
                 // We catch an exception here, in case we just closed the window we were interacting with.
                 // No javascript is running if there is no window right?
@@ -859,8 +827,8 @@ EOF;
         // number of JS pending code and JS completed code will not match and we will reach this point.
         throw new \Exception('Javascript code and/or AJAX requests are not ready after ' .
                 self::get_extended_timeout() .
-                ' seconds. There is a Javascript error or the code is extremely slow (' . $pending .
-                '). If you are using a slow machine, consider setting $CFG->behat_increasetimeout.');
+                ' seconds. There is a Javascript error or the code is extremely slow. ' .
+                'If you are using a slow machine, consider setting $CFG->behat_increasetimeout.');
     }
 
     /**
@@ -1242,71 +1210,5 @@ EOF;
      */
     public static function get_named_replacements(): array {
         return [];
-    }
-
-    /**
-     * Evaluate the supplied script in the current session, returning the result.
-     *
-     * @param string $script
-     * @return mixed
-     */
-    public function evaluate_script(string $script) {
-        return self::evaluate_script_in_session($this->getSession(), $script);
-    }
-
-    /**
-     * Evaluate the supplied script in the specified session, returning the result.
-     *
-     * @param Session $session
-     * @param string $script
-     * @return mixed
-     */
-    public static function evaluate_script_in_session(Session $session, string $script) {
-        self::require_javascript_in_session($session);
-
-        return $session->evaluateScript($script);
-    }
-
-    /**
-     * Execute the supplied script in the current session.
-     *
-     * No result will be returned.
-     *
-     * @param string $script
-     */
-    public function execute_script(string $script): void {
-        self::execute_script_in_session($this->getSession(), $script);
-    }
-
-    /**
-     * Excecute the supplied script in the specified session.
-     *
-     * No result will be returned.
-     *
-     * @param Session $session
-     * @param string $script
-     */
-    public static function execute_script_in_session(Session $session, string $script): void {
-        self::require_javascript_in_session($session);
-
-        $session->executeScript($script);
-    }
-
-    /**
-     * Get the session key for the current session via Javascript.
-     *
-     * @return string
-     */
-    public function get_sesskey(): string {
-        $script = <<<EOF
-return (function() {
-if (M && M.cfg && M.cfg.sesskey) {
-    return M.cfg.sesskey;
-}
-return '';
-})()
-EOF;
-
-        return $this->evaluate_script($script);
     }
 }

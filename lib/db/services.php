@@ -676,6 +676,14 @@ $functions = array(
         'type' => 'write',
         'ajax' => true,
     ),
+    'core_enrol_unenrol_user_enrolment_ext' => array(
+        'classname' => 'core_enrol_external',
+        'methodname' => 'unenrol_user_enrolment_ext',
+        'classpath' => 'enrol/externallib.php',
+        'description' => 'External function that unenrols a given user enrolment given user and course',
+        'type' => 'write',
+        'ajax' => true,
+    ),
     'core_fetch_notifications' => array(
         'classname' => 'core_external',
         'methodname' => 'fetch_notifications',

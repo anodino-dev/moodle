@@ -1,14 +1,9 @@
 <div class="form-group {{#error}}has-danger{{/error}} fitem {{#advanced}}advanced{{/advanced}} {{{element.extraclasses}}}" {{#element.groupname}}data-groupname="{{.}}"{{/element.groupname}}>
-    {{#label}}
-        <label class="col-form-label {{#element.hiddenlabel}}sr-only{{/element.hiddenlabel}}" for="{{element.id}}">
-            {{{label}}}
-        </label>
-    {{/label}}
-    <span>
-        {{{helpbutton}}}
+    <label class="col-form-label {{#element.hiddenlabel}}sr-only{{/element.hiddenlabel}}" for="{{element.id}}">
+        {{{label}}} {{{helpbutton}}}
         {{#required}}<abbr class="initialism text-danger" title="{{#str}}required{{/str}}">{{#pix}}req, core, {{#str}}required{{/str}}{{/pix}}</abbr>{{/required}}
         {{#advanced}}<abbr class="initialism text-info" title="{{#str}}advanced{{/str}}">!</abbr>{{/advanced}}
-    </span>
+    </label>
     <span data-fieldtype="{{element.type}}">
         {{$ element }}
             <!-- Element goes here -->

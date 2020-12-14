@@ -48,7 +48,6 @@ M.course.format.swap_sections = function(Y, node1, node2) {
  * Process sections after ajax response
  *
  * @param {YUI} Y YUI3 instance
- * @param {NodeList} sectionlist of sections
  * @param {array} response ajax response
  * @param {string} sectionfrom first affected section
  * @param {string} sectionto last affected section
@@ -77,14 +76,13 @@ M.course.format.process_sections = function(Y, sectionlist, response, sectionfro
             // Update section title.
             var content = Y.Node.create('<span>' + response.sectiontitles[i] + '</span>');
             sectionlist.item(i).all('.'+CSS.SECTIONNAME).setHTML(content);
-            // Update the drag handle.
-            ele = sectionlist.item(i).one(SELECTORS.SECTIONLEFTSIDE).ancestor('.section-handle');
-            str = ele.getAttribute('title');
+            // Update move icon.
+            ele = sectionlist.item(i).one(SELECTORS.SECTIONLEFTSIDE);
+            str = ele.getAttribute('alt');
             stridx = str.lastIndexOf(' ');
             newstr = str.substr(0, stridx +1) + i;
-            ele.setAttribute('title', newstr);
-            // Update the aria-label for the section.
-            sectionlist.item(i).setAttribute('aria-label', content.get('innerText').trim());
+            ele.setAttribute('alt', newstr);
+            ele.setAttribute('title', newstr); // For FireFox as 'alt' is not refreshed.
         }
     }
 }

@@ -61,9 +61,8 @@ class mod_folder_renderer extends plugin_renderer_base {
             // Display module name as the name of the root directory.
             $foldertree->dir['dirname'] = $cm->get_formatted_name(array('escape' => false));
         }
-        $output .= $this->output->container_start("box generalbox pt-0 pb-3 foldertree");
-        $output .= $this->render($foldertree);
-        $output .= $this->output->container_end();
+        $output .= $this->output->box($this->render($foldertree),
+                'generalbox foldertree');
 
         // Do not append the edit button on the course page.
         $downloadable = folder_archive_available($folder, $cm);
@@ -92,9 +91,7 @@ class mod_folder_renderer extends plugin_renderer_base {
         }
 
         if ($buttons) {
-            $output .= $this->output->container_start("box generalbox pt-0 pb-3 folderbuttons");
-            $output .= $buttons;
-            $output .= $this->output->container_end();
+            $output .= $this->output->box($buttons, 'generalbox folderbuttons');
         }
 
         return $output;
