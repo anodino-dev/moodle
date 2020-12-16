@@ -58,7 +58,7 @@ class core_renderer extends \theme_boost\output\core_renderer {
         return $setting <= 4 ? true : false;
     }
     public function full_header() {
-        global $PAGE, $COURSE;
+        global $PAGE, $COURSE, $course;
         $theme = theme_config::load('fordson');
         $pagelayout = $theme->settings->pagelayout;
         $header = new stdClass();
@@ -80,14 +80,25 @@ class core_renderer extends \theme_boost\output\core_renderer {
         $header->pageheadingbutton = $this->page_heading_button();
         $header->courseheader = $this->course_header();
         $header->headerimage = $this->headerimage();
+        $header->headeractions = $this->page->get_header_actions();
+
+        if (theme_fordson_get_setting('jitsibuttontext') && $PAGE->pagelayout == 'course') {
+            $jitsibuttonurl = $theme->settings->jitsibuttonurl;
+            $jitsibuttontext = $theme->settings->jitsibuttontext;
+            $header->jitsi = '<a class="btn btn-primary" href=" ' . $jitsibuttonurl . '/' . $course->id .' ' . $course->fullname . '" target="_blank"> <i class="fa fa-video-camera jitsivideoicon" aria-hidden="true"></i><span class="jistibuttontext">
+' . $jitsibuttontext . ' </span></a>';
+        }
+        
         return $this->render_from_template('theme_fordson/header', $header);
     }
+    
     public function image_url($imagename, $component = 'moodle') {
         // Strip -24, -64, -256  etc from the end of filetype icons so we
         // only need to provide one SVG, see MDL-47082.
         $imagename = \preg_replace('/-\d\d\d?$/', '', $imagename);
         return $this->page->theme->image_url($imagename, $component);
     }
+
     public function headerimage() {
         global $CFG, $COURSE, $PAGE, $OUTPUT;
         // Get course overview files.
@@ -185,6 +196,9 @@ class core_renderer extends \theme_boost\output\core_renderer {
             // Use the default theme image when no course image is detected.
             return $this->image_url('noimg', 'theme')->out();
         }
+    }
+    public function edit_button(moodle_url $url) {
+        return '';
     }
 
     public function edit_button_fhs() {
@@ -389,7 +403,7 @@ class core_renderer extends \theme_boost\output\core_renderer {
            
             if ($courses = enrol_get_my_courses(NULL, 'fullname ASC')) {
                 if (theme_fordson_get_setting('frontpagemycoursessorting')) {
-                $courses = enrol_get_my_courses(NULL, 'sortorder ASC');
+                $courses = enrol_get_my_courses(null, 'sortorder ASC');
                 $nomycourses = '<div class="alert alert-info alert-block">' . get_string('nomycourses', 'theme_fordson') . '</div>';
                 if ($courses) {
                     // We have something to work with.  Get the last accessed information for the user and populate.
@@ -681,6 +695,14 @@ class core_renderer extends \theme_boost\output\core_renderer {
         $nav6buttontext = (empty($PAGE->theme->settings->nav6buttontext)) ? false : format_string($PAGE->theme->settings->nav6buttontext);
         $nav7buttontext = (empty($PAGE->theme->settings->nav7buttontext)) ? false : format_string($PAGE->theme->settings->nav7buttontext);
         $nav8buttontext = (empty($PAGE->theme->settings->nav8buttontext)) ? false : format_string($PAGE->theme->settings->nav8buttontext);
+        $nav1target = (empty($PAGE->theme->settings->nav1target)) ? false : $PAGE->theme->settings->nav1target;
+        $nav2target = (empty($PAGE->theme->settings->nav2target)) ? false : $PAGE->theme->settings->nav2target;
+        $nav3target = (empty($PAGE->theme->settings->nav3target)) ? false : $PAGE->theme->settings->nav3target;
+        $nav4target = (empty($PAGE->theme->settings->nav4target)) ? false : $PAGE->theme->settings->nav4target;
+        $nav5target = (empty($PAGE->theme->settings->nav5target)) ? false : $PAGE->theme->settings->nav5target;
+        $nav6target = (empty($PAGE->theme->settings->nav6target)) ? false : $PAGE->theme->settings->nav6target;
+        $nav7target = (empty($PAGE->theme->settings->nav7target)) ? false : $PAGE->theme->settings->nav7target;
+        $nav8target = (empty($PAGE->theme->settings->nav8target)) ? false : $PAGE->theme->settings->nav8target;
         $fptextbox = (empty($PAGE->theme->settings->fptextbox && isloggedin())) ? false : format_text($PAGE->theme->settings->fptextbox, FORMAT_HTML, array(
             'noclean' => true
         ));
@@ -770,7 +792,7 @@ class core_renderer extends \theme_boost\output\core_renderer {
 
         $logintoken = \core\session\manager::get_login_token();
 
-        $fp_wonderboxcontext = ['logintoken' => $logintoken, 'hasfptextbox' => (!empty($PAGE->theme->settings->fptextbox && isloggedin())) , 'fptextbox' => $fptextbox, 'hasslidetextbox' => (!empty($PAGE->theme->settings->slidetextbox && isloggedin())) , 'slidetextbox' => $slidetextbox, 'hasfptextboxlogout' => !isloggedin() , 'fptextboxlogout' => $fptextboxlogout, 'hasshowloginform' => $PAGE->theme->settings->showloginform, 'hasalert' => (!empty($PAGE->theme->settings->alertbox && isloggedin())) , 'alertbox' => $alertbox, 'hasmarkettiles' => ($hasmarketing1 || $hasmarketing2 || $hasmarketing3 || $hasmarketing4 || $hasmarketing5 || $hasmarketing6) ? true : false, 'markettiles' => array(
+        $fp_wonderboxcontext = ['logintoken' => $logintoken, 'hasfptextbox' => (!empty($PAGE->theme->settings->fptextbox && isloggedin())) , 'fptextbox' => $fptextbox, 'hasslidetextbox' => (!empty($PAGE->theme->settings->slidetextbox && isloggedin())) , 'slidetextbox' => $slidetextbox, 'hasfptextboxlogout' => !isloggedin() , 'fptextboxlogout' => $fptextboxlogout, 'hasshowloginform' => $PAGE->theme->settings->showloginform, 'alertbox' => $alertbox, 'hasmarkettiles' => ($hasmarketing1 || $hasmarketing2 || $hasmarketing3 || $hasmarketing4 || $hasmarketing5 || $hasmarketing6) ? true : false, 'markettiles' => array(
             array(
                 'hastile' => $hasmarketing1,
                 'tileimage' => $marketing1image,
@@ -841,49 +863,57 @@ class core_renderer extends \theme_boost\output\core_renderer {
                 'hasicon' => $hasnav1icon,
                 'linkicon' => $hasnav1icon,
                 'link' => $nav1buttonurl,
-                'linktext' => $nav1buttontext
+                'linktext' => $nav1buttontext,
+                'linktarget' => $nav1target
             ) ,
             array(
                 'hasicon' => $hasnav2icon,
                 'linkicon' => $hasnav2icon,
                 'link' => $nav2buttonurl,
-                'linktext' => $nav2buttontext
+                'linktext' => $nav2buttontext,
+                'linktarget' => $nav2target
             ) ,
             array(
                 'hasicon' => $hasnav3icon,
                 'linkicon' => $hasnav3icon,
                 'link' => $nav3buttonurl,
-                'linktext' => $nav3buttontext
+                'linktext' => $nav3buttontext,
+                'linktarget' => $nav3target
             ) ,
             array(
                 'hasicon' => $hasnav4icon,
                 'linkicon' => $hasnav4icon,
                 'link' => $nav4buttonurl,
-                'linktext' => $nav4buttontext
+                'linktext' => $nav4buttontext,
+                'linktarget' => $nav4target
             ) ,
             array(
                 'hasicon' => $hasnav5icon,
                 'linkicon' => $hasnav5icon,
                 'link' => $nav5buttonurl,
-                'linktext' => $nav5buttontext
+                'linktext' => $nav5buttontext,
+                'linktarget' => $nav5target
             ) ,
             array(
                 'hasicon' => $hasnav6icon,
                 'linkicon' => $hasnav6icon,
                 'link' => $nav6buttonurl,
-                'linktext' => $nav6buttontext
+                'linktext' => $nav6buttontext,
+                'linktarget' => $nav6target
             ) ,
             array(
                 'hasicon' => $hasnav7icon,
                 'linkicon' => $hasnav7icon,
                 'link' => $nav7buttonurl,
-                'linktext' => $nav7buttontext
+                'linktext' => $nav7buttontext,
+                'linktarget' => $nav7target
             ) ,
             array(
                 'hasicon' => $hasnav8icon,
                 'linkicon' => $hasnav8icon,
                 'link' => $nav8buttonurl,
-                'linktext' => $nav8buttontext
+                'linktext' => $nav8buttontext,
+                'linktarget' => $nav8target
             ) ,
         ) , 'fpcreateicon' => array(
             array(
@@ -1352,6 +1382,10 @@ class core_renderer extends \theme_boost\output\core_renderer {
         $eventmonitoringlink = new moodle_url('/admin/tool/monitor/managerules.php', array(
             'courseid' => $PAGE->course->id
         ));
+        $copycoursetitle = get_string('copycourse', 'moodle');
+        $copycourselink = new moodle_url('/backup/copy.php', array(
+            'id' => $PAGE->course->id
+        ));
 
         // Student Dash
         if (\core_completion\progress::get_course_progress_percentage($PAGE->course)) {
@@ -1632,6 +1666,11 @@ class core_renderer extends \theme_boost\output\core_renderer {
                     'hascoursemanagelinks' => $courseadmintitle,
                     'title' => $courseadmintitle,
                     'url' => $courseadminlink
+                ) ,
+                array(
+                    'hascoursemanagelinks' => $copycoursetitle,
+                    'title' => $copycoursetitle,
+                    'url' => $copycourselink
                 ) ,
                 array(
                     'hascoursemanagelinks' => $courseresettitle,

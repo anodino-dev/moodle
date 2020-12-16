@@ -23,6 +23,7 @@ $CFG->sslproxy = true;
 if (isset($_ENV['UPGRADEKEY'])){
 	$CFG->upgradekey=$_ENV['UPGRADEKEY'];
 }
+//$CFG->theme = 'boost';
 //$CFG->wwwroot   = 'http://mercurio.bitvax.com:9090';
 $CFG->dataroot  = '/var/www/moodledata';
 $CFG->admin     = 'admin';

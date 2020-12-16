@@ -37,6 +37,11 @@
                         {{{settingsmenu}}}
                     </div>
                     {{/settingsmenu}}
+                    <div class="header-actions-container flex-shrink-0" data-region="header-actions-container">
+                        {{#headeractions}}
+                            <div class="header-action ml-2">{{{.}}}</div>
+                        {{/headeractions}}
+                    </div>
                 </div>
                 <div class="d-flex flex-wrap">
                     {{#hasnavbar}}
@@ -44,6 +49,7 @@
                         {{{navbar}}}
                     </div>
                     {{/hasnavbar}}
+
                     <div class="ml-auto d-flex">
                         {{{pageheadingbutton}}}
                     </div>
@@ -54,4 +60,7 @@
             </div>
         </div>
     </div>
+    {{#jitsi}}
+        {{{ jitsi }}}
+    {{/jitsi}}
 </header>

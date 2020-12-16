@@ -114,12 +114,3 @@ body {
     @include button-outline-variant($gray-600);
     border-color: $border-color;
 }
-
-// Fix assignment grading
-.path-mod-assign [data-region="grading-navigation-panel"] {
-    background-color: #fff;
-}
-
-.path-mod-assign [data-region="grade-actions"] {
-    background-color: #fff;
-}

@@ -35,7 +35,4 @@ $templatecontext = [
     'hasslideshowpages' => $hasslideshowpages,
 ];
 
-$PAGE->requires->jquery();
-$PAGE->requires->js('/theme/fordson/javascript/hidegooglesecurebrowser.js');
-
 echo $OUTPUT->render_from_template('theme_fordson/login', $templatecontext);
