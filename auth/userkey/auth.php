@@ -156,6 +156,16 @@ class auth_plugin_userkey extends auth_plugin_base {
         $this->userkeymanager->delete_keys($key->userid);
 
         $user = get_complete_user_data('id', $key->userid);
+        if (!empty($user->suspended)) {
+            $failurereason = AUTH_LOGIN_SUSPENDED;
+
+            // Trigger login failed event.
+            $event = \core\event\user_login_failed::create(array('userid' => $user->id,
+                'other' => array('username' => $user->username, 'reason' => $failurereason)));
+            $event->trigger();
+            error_log('[client '.getremoteaddr()."]  $CFG->wwwroot  Suspended Login:  $user->username  ".$_SERVER['HTTP_USER_AGENT']);
+            throw new invalid_parameter_exception('User suspended');
+        }
         complete_user_login($user);
 
         // Identify this session as using user key auth method.
@@ -393,14 +403,24 @@ class auth_plugin_userkey extends auth_plugin_base {
 
         $user = $DB->get_record('user', $params);
 
-        if (empty($user)) {
+        if (empty($user) ) {
             if ($this->should_create_user()) {
                 $user = $this->create_user($data);
             } else {
-                throw new invalid_parameter_exception('User is not exist');
+                throw new invalid_parameter_exception('User does not exist');
             }
         } else if ($this->should_update_user()) {
             $user = $this->update_user($user, $data);
+        }
+        if (!empty($user->suspended)) {
+            $failurereason = AUTH_LOGIN_SUSPENDED;
+
+            // Trigger login failed event.
+            $event = \core\event\user_login_failed::create(array('userid' => $user->id,
+                'other' => array('username' => $user->username, 'reason' => $failurereason)));
+            $event->trigger();
+            error_log('[client '.getremoteaddr()."]  $CFG->wwwroot  Suspended Login:  $user->username  ".$_SERVER['HTTP_USER_AGENT']);
+            throw new invalid_parameter_exception('User suspended');
         }
 
         return $user;
