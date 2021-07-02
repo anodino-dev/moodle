@@ -242,15 +242,28 @@ if ($PAGE->theme->settings->coursetilestyle < 10) {
                             $rowcontent .= html_writer::start_tag('div', array(
                                 'class' => $course->visible ? 'coursevisible' : 'coursedimmed2'
                             ));
-                            $rowcontent .= '
-                                <figcaption>
-                                    <h3>' . $trimtitle . '</h3>
-                                    <div class="course-card">
-                                    ' . $catcontent . '
-                                    ' . $customfieldcontent . '
-                                    <button type="button" class="btn btn-primary btn-sm coursestyle2btn">' . $enrollbutton . '   <i class="fa fa-arrow-circle-right" aria-hidden="true"></i></button>
-                                    ';
-                            if ($course->has_course_contacts()) {
+                            $startdate = date('d-j-Y',$course->startdate);
+                            $enddate = date('d-j-Y',$course->enddate);
+                            $rowcontent .= "<figcaption>
+                                        ";
+                            if ($course->startdate > 0){
+                                $rowcontent .= "<span>Inicio: <b>{$startdate}</b></span>&nbsp;";
+                            }
+                            if ($course->enddate > 0){
+                                $rowcontent .= "<span>Fin: <b>{$enddate}</b></span>";
+                            }
+                            if (($course->enddate > 0)||($course->startdate > 0)){
+                                $rowcontent .= "<br>";
+                            }
+                            $rowcontent .= "
+                                    <h3>{$trimtitle}</h3>
+                                    <!-- <div class=\"course-card\">
+                                    {$catcontent}
+                                    {$customfieldcontent}
+                                    <button type=\"button\" class=\"btn btn-primary btn-sm coursestyle2btn\">{$enrollbutton}   <i class=\"fa fa-arrow-circle-right\" aria-hidden=\"true\"></i></button>
+                                    -->";
+
+/*                            if ($course->has_course_contacts()) {
                                 $rowcontent .= html_writer::start_tag('ul', array(
                                     'class' => 'teacherscourseview'
                                 ));
@@ -259,7 +272,7 @@ if ($PAGE->theme->settings->coursetilestyle < 10) {
                                     $rowcontent .= html_writer::tag('li', $name);
                                 }
                                 $rowcontent .= html_writer::end_tag('ul');
-                            }
+                            }*/
                             $rowcontent .= '
                                 </div>
 
