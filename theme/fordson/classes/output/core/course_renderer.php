@@ -242,8 +242,8 @@ if ($PAGE->theme->settings->coursetilestyle < 10) {
                             $rowcontent .= html_writer::start_tag('div', array(
                                 'class' => $course->visible ? 'coursevisible' : 'coursedimmed2'
                             ));
-                            $startdate = date('d-j-Y',$course->startdate);
-                            $enddate = date('d-j-Y',$course->enddate);
+                            $startdate = date('d-m-Y',$course->startdate);
+                            $enddate = date('d-m-Y',$course->enddate);
                             $rowcontent .= "<figcaption>
                                         ";
                             if ($course->startdate > 0){
