@@ -43,4 +43,13 @@ $tasks = [
         'month' => '*',
         'dayofweek' => '*'
     ],
+    [
+        'classname' => 'mod_bigbluebuttonbn\task\check_processed_recordings',
+        'blocking' => 0,
+        'minute' => '0',
+        'hour' => '3',
+        'day' => '*',
+        'month' => '*',
+        'dayofweek' => '*'
+    ],
 ];

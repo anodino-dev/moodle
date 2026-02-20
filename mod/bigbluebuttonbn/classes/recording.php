@@ -695,7 +695,6 @@ class recording extends persistent {
     protected static function fetch_records(array $selects, array $params): array {
         global $DB, $CFG;
 
-        $withindays = time() - (self::RECORDING_TIME_LIMIT_DAYS * DAYSECS);
         // Sort for recordings when fetching from the database.
         $recordingsort = $CFG->bigbluebuttonbn_recordings_asc_sort ? 'timecreated ASC' : 'timecreated DESC';
 
@@ -714,27 +713,19 @@ class recording extends persistent {
 
         // Fetch all metadata for these recordings.
         $metadatas = recording_proxy::fetch_recordings($recordingids);
-        $failedids = recording_proxy::fetch_missing_recordings($recordingids);
 
-        // Return the instances.
-        return array_filter(array_map(function ($recording) use ($metadatas, $withindays, $failedids) {
-            // Filter out if no metadata was fetched.
+        // Return the instances, filtering out recordings not available on the server.
+        // We intentionally do NOT modify recording status here. Status changes are handled
+        // exclusively by scheduled tasks (check_pending_recordings, check_dismissed_recordings)
+        // to prevent data loss when BBB temporarily returns partial results.
+        return array_filter(array_map(function ($recording) use ($metadatas) {
             if (!array_key_exists($recording->recordingid, $metadatas)) {
-                // If the recording was successfully fetched, mark it as dismissed if it is older than 30 days.
-                if (!in_array($recording->recordingid, $failedids) && $withindays > $recording->timecreated) {
-                    $recording = new self(0, $recording, null);
-                    $recording->set_status(self::RECORDING_STATUS_DISMISSED);
-                }
                 return false;
             }
             $metadata = $metadatas[$recording->recordingid];
-            // Filter out and mark it as deleted if it was deleted in BBB.
             if ($metadata['state'] == 'deleted') {
-                $recording = new self(0, $recording, null);
-                $recording->set_status(self::RECORDING_STATUS_DELETED);
                 return false;
             }
-            // Include it otherwise.
             return new self(0, $recording, $metadata);
         }, $recordings));
     }
@@ -782,18 +773,15 @@ class recording extends persistent {
      */
     public static function sync_pending_recordings_from_server(bool $dismissedonly = false): void {
         global $DB;
-        $params = [
-            'withindays' => time() - (self::RECORDING_TIME_LIMIT_DAYS * DAYSECS),
-        ];
+        $params = [];
         // Fetch the local data.
         if ($dismissedonly) {
-            mtrace("=> Looking for any recording that has been 'dismissed' in the past " . self::RECORDING_TIME_LIMIT_DAYS
-                . " days.");
-            $select = 'status = :status_dismissed AND timemodified > :withindays';
+            mtrace("=> Looking for any recording that has been 'dismissed'.");
+            $select = 'status = :status_dismissed';
             $params['status_dismissed'] = self::RECORDING_STATUS_DISMISSED;
         } else {
-            mtrace("=> Looking for any recording awaiting processing from the past " . self::RECORDING_TIME_LIMIT_DAYS . " days.");
-            $select = '(status = :status_awaiting AND timecreated > :withindays) OR status = :status_reset';
+            mtrace("=> Looking for any recording awaiting processing.");
+            $select = 'status = :status_awaiting OR status = :status_reset';
             $params['status_reset'] = self::RECORDING_STATUS_RESET;
             $params['status_awaiting'] = self::RECORDING_STATUS_AWAITING;
         }
@@ -848,5 +836,77 @@ class recording extends persistent {
         }
 
         mtrace("=> Finished processing recordings. Updated status for {$foundcount} / {$recordingcount} recordings.");
+    }
+
+    /**
+     * Verify processed recordings against the BBB server.
+     *
+     * Marks recordings as dismissed when BBB confirms they no longer exist (API call
+     * succeeded but recording was not returned), and as deleted when BBB reports
+     * state=deleted. Recordings whose API calls failed are skipped entirely to avoid
+     * data loss during temporary BBB outages.
+     *
+     * Dismissed recordings can be recovered automatically by the check_dismissed_recordings
+     * task if BBB starts returning them again.
+     */
+    public static function sync_processed_recordings_with_server(): void {
+        global $DB;
+
+        mtrace("=> Looking for processed/notified recordings to verify against BBB server.");
+        $recordings = $DB->get_records_select(
+            static::TABLE,
+            'status = :status_processed OR status = :status_notified',
+            [
+                'status_processed' => self::RECORDING_STATUS_PROCESSED,
+                'status_notified' => self::RECORDING_STATUS_NOTIFIED,
+            ],
+            self::DEFAULT_RECORDING_SORT
+        );
+
+        $recordingcount = count($recordings);
+        mtrace("=> Found {$recordingcount} processed/notified recordings to verify.");
+        if (empty($recordings)) {
+            return;
+        }
+
+        // Grab the recording IDs.
+        $recordingids = array_map(function($recording) {
+            return $recording->recordingid;
+        }, $recordings);
+
+        // Fetch metadata and determine which IDs had API failures.
+        mtrace("=> Fetching recording metadata from server");
+        $metadatas = recording_proxy::fetch_recordings($recordingids);
+        $failedids = recording_proxy::fetch_missing_recordings($recordingids);
+
+        $dismissedcount = 0;
+        $deletedcount = 0;
+        $failedcount = count($failedids);
+
+        foreach ($recordings as $id => $record) {
+            $rid = $record->recordingid;
+
+            // If this ID had an API failure, skip it — we cannot trust the result.
+            if (in_array($rid, $failedids)) {
+                continue;
+            }
+
+            if (array_key_exists($rid, $metadatas)) {
+                if ($metadatas[$rid]['state'] == 'deleted') {
+                    mtrace("==> {$rid}: BBB reports state=deleted, marking as deleted.");
+                    $recording = new self(0, $record, null);
+                    $recording->set_status(self::RECORDING_STATUS_DELETED);
+                    $deletedcount++;
+                }
+            } else {
+                mtrace("==> {$rid}: not returned by BBB (API call succeeded), marking as dismissed.");
+                $recording = new self(0, $record, null);
+                $recording->set_status(self::RECORDING_STATUS_DISMISSED);
+                $dismissedcount++;
+            }
+        }
+
+        mtrace("=> Finished verifying processed recordings: "
+            . "{$dismissedcount} dismissed, {$deletedcount} deleted, {$failedcount} skipped (API failures).");
     }
 }

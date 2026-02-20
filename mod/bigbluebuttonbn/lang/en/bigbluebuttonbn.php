@@ -639,6 +639,7 @@ $string['cachedef_validatedurls'] = 'Cache of validated URL checks';
 $string['cachedef_subplugins'] = 'Cache used by subplugin routines to accelerate when needed the plugin discovery process.';
 $string['taskname:check_pending_recordings'] = 'Fetch pending recordings';
 $string['taskname:check_dismissed_recordings'] = 'Check for recordings that haven\'t been found yet';
+$string['taskname:check_processed_recordings'] = 'Verify processed recordings against BBB server';
 $string['userlimitreached'] = 'The number of users allowed in a session has been reached.';
 $string['waitformoderator'] = 'Waiting for a moderator to join.';
 
